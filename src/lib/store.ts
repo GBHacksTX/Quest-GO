@@ -20,6 +20,9 @@ const migrations = readdirSync(path.join(process.cwd(), "migrations"))
     sql: readFileSync(path.join(process.cwd(), "migrations", file), "utf8"),
   }));
 export const liveStorageReady = () => !!process.env.DATABASE_URL;
+// Keep the user's other datasets and similarly named public tables untouched.
+export const APP_SCHEMA = "questgo_app";
+export const postgresOptions = { options: `-c search_path=${APP_SCHEMA},pg_catalog`, connectionTimeoutMillis: 8000, query_timeout: 10_000 };
 
 async function load(query: Query): Promise<State> {
   const state = emptyState();
@@ -37,11 +40,14 @@ async function load(query: Query): Promise<State> {
   const photos = await query(
     "SELECT id, session_id, user_id, width, height, size_bytes, uploaded_at FROM achievement_photos",
   );
+  const submissions = await query("SELECT id,session_id,user_id,revision,width,height,size_bytes,uploaded_at FROM questgo_photo_submissions ORDER BY revision DESC");
+  const validations = await query("SELECT photo_id,data,ordinal FROM questgo_photo_validations ORDER BY ordinal DESC");
   for (const session of state.sessions)
     session.participants = participants
       .filter((row) => row.session_id === session.id)
       .map((row) => {
-        const photo = photos.find(
+        const submission = submissions.find((entry) => entry.session_id === row.session_id && entry.user_id === row.user_id);
+        const photo = submission || photos.find(
           (entry) =>
             entry.session_id === row.session_id &&
             entry.user_id === row.user_id,
@@ -59,6 +65,8 @@ async function load(query: Query): Promise<State> {
                 width: Number(photo.width),
                 height: Number(photo.height),
                 size: Number(photo.size_bytes),
+                revision: submission ? Number(submission.revision) : undefined,
+                validation: submission ? JSON.parse(String(validations.find((entry) => entry.photo_id === submission.id)?.data || "null")) || undefined : undefined,
               }
             : undefined,
         };
@@ -113,6 +121,9 @@ async function save(query: Query, state: State) {
           person.completedAt ?? null,
         ],
       );
+    if (session.status === "completed" && session.completedAt && participants.every((person) => person.photo?.validation?.status === "approved" && (state.users.find((user) => user.id === person.userId)?.demoRoom || person.photo.validation.provider === "meta"))) {
+      await query("INSERT INTO questgo_achievements(id,session_id,completed_at,evidence_json) VALUES($1,$2,$3,$4) ON CONFLICT(session_id) DO NOTHING", [session.id, session.id, session.completedAt, JSON.stringify({ questId: session.questId, participants: participants.map((person) => ({ userId: person.userId, photoId: person.photo!.id, validationId: person.photo!.validation!.id })) })]);
+    }
   }
 }
 export async function migrate() {
@@ -120,13 +131,13 @@ export async function migrate() {
     throw new Error("Set DATABASE_URL before running live migrations.");
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    connectionTimeoutMillis: 8000,
-    query_timeout: 10_000,
+    ...postgresOptions,
   });
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(7823472)");
+    await client.query(`CREATE SCHEMA IF NOT EXISTS ${APP_SCHEMA}`);
     await client.query(
       "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
     );
@@ -228,8 +239,7 @@ export async function transact<T>(
     globals.questgoPool ??= new Pool({
       connectionString: process.env.DATABASE_URL,
       max: 5,
-      connectionTimeoutMillis: 8000,
-      query_timeout: 10_000,
+      ...postgresOptions,
     });
     const client = await globals.questgoPool.connect();
     try {

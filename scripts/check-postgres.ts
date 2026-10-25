@@ -7,7 +7,7 @@ import {
   readAchievementPhoto,
   storeAchievementPhoto,
 } from "../src/lib/achievement-photos";
-import { migrate, transact } from "../src/lib/store";
+import { migrate, transact, postgresOptions } from "../src/lib/store";
 import {
   encounter,
   hash,
@@ -32,6 +32,10 @@ async function main() {
       "This check only runs against a local database named questgo_test.",
     );
   process.env.DATABASE_URL = url;
+  const sentinel = new Pool({ connectionString: url });
+  await sentinel.query("CREATE TABLE IF NOT EXISTS public.app_users(id TEXT PRIMARY KEY,data TEXT NOT NULL)");
+  await sentinel.query("INSERT INTO public.app_users(id,data) VALUES('existing-dataset','keep this record') ON CONFLICT(id) DO NOTHING");
+  await sentinel.end();
   await migrate();
   const prefix = randomUUID();
   const ids = [`${prefix}-a`, `${prefix}-b`];
@@ -97,8 +101,9 @@ async function main() {
   assert.equal(result.streak, 1);
   assert.ok(result.session!.people.every((person) => person.photo));
   await migrate();
-  const client = new Pool({ connectionString: url });
+  const client = new Pool({ connectionString: url, ...postgresOptions });
   try {
+    assert.equal((await client.query("SELECT data FROM public.app_users WHERE id='existing-dataset'")).rows[0].data,"keep this record");
     await assert.rejects(
       client.query(
         "INSERT INTO participants(session_id,user_id) VALUES($1,$2)",

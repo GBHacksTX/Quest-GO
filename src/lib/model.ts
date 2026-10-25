@@ -42,6 +42,7 @@ export type Quest = {
     directionsUrl?: string;
   };
   sourceText?: string;
+  completionCriteria?: string[];
 };
 export type Encounter = {
   id: string;
@@ -56,6 +57,18 @@ export type AchievementPhoto = {
   width: number;
   height: number;
   size: number;
+  revision?: number;
+  validation?: PhotoValidation;
+};
+export type PhotoValidation = {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "error";
+  provider: "meta" | "demo";
+  model: string;
+  checkedAt: number;
+  confidence?: number;
+  reasoning: string;
+  criteria: { criterion: string; met: boolean; evidence: string }[];
 };
 export type Participant = {
   userId: string;
