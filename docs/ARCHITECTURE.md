@@ -66,14 +66,16 @@ The MVP repository uses normalized entity identities and relationships with type
 ### AI
 - Gemini API
 
+Gemini optionally writes activity text from validated preference and place context. OpenStreetMap Overpass supplies venue identities and locations; Nominatim resolves manually entered areas. No extra places API key is required. Venue lookup and AI calls have timeouts and a deterministic free fallback. Unknown prices remain unknown, and payments/bookings stay outside QuestGo. See `INTEGRATIONS.md` for public-service limits and verification status.
+
 ### Hardware
 - ESP32
 
-### Confirmed requirements awaiting integration design
+### Integration decisions
 
-- ESP32 firmware is supplied by a teammate and reports encounters over Wi-Fi. The reporting destination, payload, device claim method, and sender authentication still need agreement; the diagram below is conceptual rather than a complete device protocol.
+- ESP32 firmware is supplied by a teammate and reports over Wi-Fi to authenticated Next.js hardware routes. Each provisioned device has its own firmware key and separate user pairing code. `HARDWARE.md` defines the software contract; the teammate must connect and verify the actual firmware.
 - Encounter discovery may require the website to remain open while a user is available. Background notifications are outside the MVP.
-- Real nearby venues and potentially paid activities are required. A trustworthy place-data integration and location handling must be selected; Gemini alone does not establish venue accuracy. Neither integration is implemented yet.
+- Real nearby venues and potentially paid activities use OpenStreetMap data, browser coordinates or manual area entry, and optional Gemini activity text. Prices and access must be checked with venues. Provider failures are visible and fall back to a free activity.
 - Both Google and Facebook remain required login providers. See `PRODUCT.md` for the confirmed scope and proposed journey awaiting review.
 
 > The stack may change during development. Update this file whenever a major technology or architectural decision changes.
@@ -165,13 +167,13 @@ AI should not be used where simple deterministic application logic is sufficient
 ```text
 ESP32 devices
       ↓
-Encounter data
+Authenticated Next.js hardware endpoint
       ↓
-Tiger Data
+Tiger Data / PostgreSQL encounter transaction
       ↓
-QuestGo application
+OpenStreetMap venue lookup + optional Gemini activity text
       ↓
-Quest generation / selection
+One persisted quest and shared session
       ↓
 Shared quest state
    ↙             ↘

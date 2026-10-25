@@ -9,6 +9,9 @@ Browser actions use same-origin JSON requests and a server-verified identity. Li
 | `POST /api/app` | Submit a typed `action`: `profile`, `availability`, `claim`, `session`, or `dismiss`. Session actions are `accept`, `withdraw`, `skip`, `complete`, and `leave`. |
 | `POST /api/demo` | `{"action":"start"}` creates an isolated demo room with two sample identities; `logout` clears only the demo cookie. |
 | `GET /demo/join/<room>` | Join the second sample identity using the demo room's unguessable invitation link. This grants access only to that illustrative demo, never a real account. |
+| `POST /api/quests/retry` | Retry venue preparation for a live shared offer before either participant accepts; limited to three attempts per minute. |
+| `POST /api/hardware/heartbeat` | Update a registered sender's last report using its per-device bearer key. |
+| `POST /api/hardware/encounters` | Authenticate a sender, deduplicate an encounter, create one shared session and prepare its venue/activity. See `HARDWARE.md`. |
 
 The demo uses signed, HTTP-only cookies. Its explicit `demoEncounter` and `demoPartner` actions simulate hardware and the second person within the caller's own demo room. Real accounts cannot invoke these controls. All acceptance and completion changes, including simulated partner actions, pass through the same domain rules.
 

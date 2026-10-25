@@ -82,26 +82,23 @@ Show the completed activity in history and the result under the agreed streak ru
 
 Provide clear loading, empty, connection-lost, and recoverable-error states where relevant. Only show an acceptance or completion as saved after the server confirms it. A refresh must recover the current shared state. Users who are not participants cannot access a private session by guessing its address.
 
-## Remaining decisions before feature implementation
+## Implemented MVP rules
 
-| Topic | What needs to be settled |
-| --- | --- |
-| Consent and identity | Agree to the proposed availability and skip flow; decide how friends or strangers identify each other in person and what name/profile information is visible. |
-| Nearby activities | Choose how location is supplied, what “nearby” means, and a trustworthy place-data provider. Decide whether directions links are enough or an embedded map is required. |
-| Paid activities | Confirm that payment and booking happen outside QuestGo; define how estimates and unknown prices are displayed. |
-| Pairing | Decide which pair receives an offer when several eligible devices are near each other. |
-| Device handoff | Agree with the hardware teammate on device claims, report fields, sender authentication, retries, and what demonstrates real connectivity. |
-| Session boundaries | Set offer timeout, duplicate cooldown, leaving/abandonment behavior, and when participants may receive another offer. |
-| Preference conflicts | Agree on combining modes, time, travel distance, and spending limits without exceeding either person's limits. |
-| Streaks | Choose calendar-day/timezone behavior and how repeated completions in a day count. |
+Availability is explicit and expires after 45 seconds without a foreground browser poll. Real devices must have reported within 90 seconds before their owners can become available. The first eligible reported pair receives one offer; there is no nearby-person directory. Only display names and participant progress are shared. A person can have one unresolved quest at a time.
 
-Normal mode supports everyday exploration; Work mode supports brief activities appropriate to work or school. No sign-in, device, location, venue lookup, or shared session behavior described above is implemented yet.
+Use the lower time and budget limits. If either person chooses Work mode, the shared activity uses Work mode and lasts at most 15 minutes. Combine interests as suggestion context. Place radius is bounded by available time and capped at 1.2 km; walking time is an estimate, not a routing guarantee. Unknown venue prices remain variable, with both people told to check the venue and respect their agreed spending limit.
 
-## Review and implementation sequence
+Offers expire after five minutes; active quests after 24 hours. Before activation, either person can pass or withdraw acceptance. After activation, either can leave without completion credit. An ended quest can be dismissed; the person remains paused until choosing availability again. The same pair has a ten-minute encounter cooldown. Completed sessions count once toward history and once per distinct UTC calendar day toward streaks.
 
-1. Agree on this journey and update the domain, architecture, and tasks to match the final decisions.
-2. When the user asks to proceed, build a complete interactive UI walkthrough: onboarding, device setup, home, offer, waiting, active quest, completion, history, and the relevant error/skip paths. Label sample data and simulated interactions. Review it on phone and desktop before treating the design as settled.
-3. Connect and verify the real features one at a time, using the agreed flow and documented feature branches. Request credentials only as each service is needed.
+Nearby places come from OpenStreetMap with source and directions links. Gemini optionally writes the activity text. A missing provider, invalid response or timeout uses a free activity with a visible fallback explanation. A live offer can retry nearby lookup only before either person accepts.
+
+The remaining external work is provider credentials/callback verification, NorthMark hosting access and actual ESP32 firmware integration. Device ownership transfer, embedded maps, in-app payments and group matching remain outside this MVP.
+
+## Delivery and verification sequence
+
+1. Record the journey and defaults in the product, domain and architecture documentation.
+2. Implement and review the complete responsive application: onboarding, device setup, home, offer, waiting, active quest, completion, history, and the relevant error/skip paths. Label sample data and simulated interactions. Review it on phone and desktop before treating the design as settled.
+3. Connect and verify the real features one at a time, using the agreed flow and documented feature branches. Collect external credentials only as each service is needed.
 4. Demonstrate the connected product with two real users and two devices, including a real venue suggestion and both acceptance and completion. Report any unverified integration explicitly.
 
 ## Visual direction

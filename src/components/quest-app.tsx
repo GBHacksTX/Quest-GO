@@ -42,7 +42,7 @@ export function QuestApp() {
     if (busy) return;
     epoch.current++; setBusy(true); setError("");
     try {
-      const response = await fetch("/api/app", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command) });
+      const response = await fetch(command.action === "retryVenue" ? "/api/quests/retry" : "/api/app", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "That action wasn't saved. Please try again.");
       setData(result); setConnected(true);
