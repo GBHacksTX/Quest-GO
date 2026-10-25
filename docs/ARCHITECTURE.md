@@ -64,9 +64,9 @@ The MVP repository uses normalized entity identities and relationships with type
 - NorthMark Compute & Cloud
 
 ### AI
-- Gemini API
+- Meta AI API
 
-Gemini optionally writes activity text from validated preference and place context. OpenStreetMap Overpass supplies venue identities and locations; Nominatim resolves manually entered areas. No extra places API key is required. Venue lookup and AI calls have timeouts and a deterministic free fallback. Unknown prices remain unknown, and payments/bookings stay outside QuestGo. See `INTEGRATIONS.md` for public-service limits and verification status.
+Meta AI optionally writes activity text from validated preference and place context. OpenStreetMap Overpass supplies venue identities and locations; Nominatim resolves manually entered areas. No extra places API key is required. Venue lookup and AI calls have timeouts and a deterministic free fallback. Unknown prices remain unknown, and payments/bookings stay outside QuestGo. See `INTEGRATIONS.md` for public-service limits and verification status.
 
 ### Hardware
 - ESP32
@@ -75,7 +75,7 @@ Gemini optionally writes activity text from validated preference and place conte
 
 - ESP32 firmware is supplied by a teammate and reports over Wi-Fi to authenticated Next.js hardware routes. Each provisioned device has its own firmware key and separate user pairing code. `HARDWARE.md` defines the software contract; the teammate must connect and verify the actual firmware.
 - Encounter discovery may require the website to remain open while a user is available. Background notifications are outside the MVP.
-- Real nearby venues and potentially paid activities use OpenStreetMap data, browser coordinates or manual area entry, and optional Gemini activity text. Prices and access must be checked with venues. Provider failures are visible and fall back to a free activity.
+- Real nearby venues and potentially paid activities use OpenStreetMap data, browser coordinates or manual area entry, and optional Meta AI activity text. Prices and access must be checked with venues. Provider failures are visible and fall back to a free activity.
 - Both Google and Facebook remain required login providers. See `PRODUCT.md` for the confirmed scope and proposed journey awaiting review.
 
 > The stack may change during development. Update this file whenever a major technology or architectural decision changes.
@@ -148,7 +148,7 @@ Authentication establishes the user's identity; QuestGo-specific profile informa
 
 ### AI Layer
 
-Gemini is currently used for quest generation.
+Meta AI is currently used for quest generation.
 
 AI should generate activities from available context such as:
 
@@ -171,7 +171,7 @@ Authenticated Next.js hardware endpoint
       ↓
 Tiger Data / PostgreSQL encounter transaction
       ↓
-OpenStreetMap venue lookup + optional Gemini activity text
+OpenStreetMap venue lookup + optional Meta AI activity text
       ↓
 One persisted quest and shared session
       ↓
@@ -258,3 +258,7 @@ The complete application is at `/explore`. A Node production build and local pro
 ## Achievement photos
 
 Each participant uploads their own photo through an authenticated, same-origin multipart endpoint. Sharp validates and re-encodes the image, corrects orientation and removes metadata. Versioned migration 002 stores private JPEG bytes in PostgreSQL for live users and the separate SQLite store for demos. This feature adds no external media-storage service or credentials. Protected image routes authorize session membership on every read; public static image hosting is not used. The completed achievement displays both photos in the result and Your stories. Streak calculation still uses mutually completed sessions, now gated by both participants' photos.
+
+## Shared photo judge
+
+Arjit Magar’s generator and image judge are shared by the standalone `validation/` lab and the main app through `shared/quest-ai.ts`. `shared/meta-ai.ts` uses Meta’s authenticated chat-completions API with image content parts. Main-app live validation never reads `MUSE_MOCK`; only explicitly isolated demo actions can simulate approval. Provider errors are sanitized and incomplete evidence responses fail closed.
