@@ -33,8 +33,8 @@ export type Quest = {
   minutes: number;
   costEstimate: number | null;
   mode: "normal" | "work";
-  source: "demo" | "maps" | "fallback";
-  venue?: { name: string; address: string; url: string };
+  source: "demo" | "osm" | "fallback";
+  venue?: { name: string; address: string; url: string; directionsUrl?: string };
   sourceText?: string;
 };
 export type Encounter = {
@@ -55,6 +55,8 @@ export type QuestSession = {
   completedAt?: number;
   expiresAt: number;
   reason?: string;
+  generationStatus?: "pending" | "complete" | "unavailable";
+  generationStartedAt?: number;
   participants: Participant[];
 };
 export type State = { users: User[]; devices: Device[]; encounters: Encounter[]; quests: Quest[]; sessions: QuestSession[] };

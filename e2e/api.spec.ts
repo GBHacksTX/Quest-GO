@@ -37,4 +37,6 @@ test("anonymous access, cross-origin writes and malformed input are rejected", a
   expect((await request.get("/api/app")).status()).toBe(401);
   expect((await request.post("/api/demo", { headers: { origin: "https://other.example" }, data: { action: "start" } })).status()).toBe(403);
   expect((await request.post("/api/demo", { headers: { origin }, data: { action: "unknown" } })).status()).toBe(400);
+  expect((await request.post("/api/hardware/heartbeat", { data: { deviceId: "example-device" } })).status()).toBe(401);
+  expect((await request.post("/api/hardware/encounters", { data: {} })).status()).toBe(401);
 });

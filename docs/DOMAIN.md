@@ -462,7 +462,7 @@ Additional modes may be introduced later if there is a clear product need.
 
 A `Streak` represents continued participation in QuestGo.
 
-The exact streak calculation has not yet been finalized.
+The MVP counts consecutive distinct UTC days with mutually completed sessions. Multiple completions on one day count as one streak day; yesterday keeps a streak current until today ends.
 
 Conceptually:
 
@@ -614,23 +614,13 @@ The implementation and documentation should evolve together.
 
 ---
 
-# 19. Open Decisions
+# 19. MVP decisions and remaining boundaries
 
-The following areas are intentionally not finalized yet:
+The implemented rules are described in `PRODUCT.md`. Availability is opt-in, a five-minute offer needs every participant's acceptance, active sessions expire after 24 hours, and the same device pair has a ten-minute cooldown. Skipping, leaving and expiration receive no completion credit. History is the source of truth for UTC-day streaks; retrying a completed session cannot award extra credit.
 
-- exact streak calculation
-- encounter cooldown behavior
-- declined quest behavior
-- quest expiration
-- exact preference model
-- group quest behavior
-- verification beyond mutual confirmation
-- device ownership lifecycle
-- rewards / XP model
+Use the smaller participant time and spending limits, and Work mode if either person requests it. One unresolved session per person prevents competing encounters. Venue identities come from OpenStreetMap; Gemini writes optional activity instructions, with a free fallback when lookup fails. All participants refer to the same saved quest.
 
-Do not invent permanent rules for these areas unless implementation requires a decision.
-
-When a decision is made, document it in the appropriate section instead of leaving conflicting assumptions across the codebase.
+Device ownership transfer, group quest rules, additional verification and rewards/XP remain undecided and are not implemented. Hardware advertisements and proximity thresholds belong to the teammate-owned firmware and still require coordination.
 
 ---
 

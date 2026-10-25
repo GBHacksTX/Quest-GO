@@ -17,6 +17,7 @@ export function getUser(state: State, id: string): User {
 }
 export function expireSessions(state: State, now = Date.now()) {
   for (const session of state.sessions) {
+    if (session.generationStatus === "pending" && session.generationStartedAt && now - session.generationStartedAt > 30_000) session.generationStatus = "unavailable";
     if (isOpen(session) && session.expiresAt <= now) {
       session.status = "expired";
       session.reason = "This quest's response window ended. You can become available again.";
@@ -29,6 +30,7 @@ export function setAvailable(state: State, userId: string, available: boolean, n
   if (available) {
     if (!user.onboarded) throw new AppError("Finish your preferences first.");
     if (!state.devices.some((device) => device.ownerId === userId)) throw new AppError("Connect your device first.");
+    if (!user.demoRoom && !state.devices.some((device) => device.ownerId === userId && device.lastSeen && now - device.lastSeen < 90_000)) throw new AppError("Your device hasn't reported recently. Check its Wi-Fi connection before becoming available.");
     if (state.sessions.some((session) => isOpen(session) && session.participants.some((person) => person.userId === userId))) throw new AppError("Finish or leave your current quest first.");
   }
   user.availableUntil = available ? now + 45_000 : undefined;
@@ -62,14 +64,15 @@ export function encounter(state: State, input: { eventId: string; deviceId: stri
   if (!a.ownerId || !b.ownerId || a.ownerId === b.ownerId) throw new AppError("The devices must belong to two different people.");
   const pairKey = [a.id, b.id].sort().join(":");
   const duplicate = state.encounters.find((entry) => entry.id === input.eventId || (entry.pairKey === pairKey && now - entry.detectedAt < 600_000));
+  if (duplicate && duplicate.pairKey !== pairKey) throw new AppError("This event identifier belongs to another device pair.", 409);
   if (duplicate) return { session: state.sessions.find((session) => session.encounterId === duplicate.id), duplicate: true };
   const users = [getUser(state, a.ownerId), getUser(state, b.ownerId)];
   if (users.some((user) => !user.onboarded || !user.availableUntil || user.availableUntil <= now)) throw new AppError("Both people need to be available with QuestGo open.", 409);
   if (users.some((user) => state.sessions.some((session) => isOpen(session) && session.participants.some((person) => person.userId === user.id)))) throw new AppError("Someone already has a quest in progress.", 409);
-  if (users[0].preferences.mode !== users[1].preferences.mode) throw new AppError("Choose the same activity mode before starting a shared quest.", 409);
+  const mode = users.some((user) => user.preferences.mode === "work") ? "work" : "normal";
   const minutes = Math.min(...users.map((user) => user.preferences.minutes));
   const budget = Math.min(...users.map((user) => user.preferences.budget));
-  const quest = demo ? sampleQuest(users[0].preferences.mode, minutes) : fallbackQuest(users[0].preferences.mode, minutes);
+  const quest = demo ? sampleQuest(mode, minutes) : fallbackQuest(mode, minutes);
   if (quest.costEstimate !== null && quest.costEstimate > budget) { quest.costEstimate = 0; quest.venue = undefined; quest.title = "A small discovery, together"; quest.description = "Take a free wander and share something new you notice."; quest.steps = fallbackQuest(quest.mode, minutes).steps; }
   const session: QuestSession = { id: randomUUID(), encounterId: input.eventId, questId: quest.id, status: "offer", createdAt: now, expiresAt: now + 300_000, participants: users.map((user) => ({ userId: user.id })) };
   state.encounters.push({ id: input.eventId, pairKey, deviceIds: [a.id, b.id], userIds: users.map((user) => user.id), detectedAt: now });
@@ -87,6 +90,7 @@ export function sessionAction(state: State, userId: string, sessionId: string, a
   if (!isOpen(session)) throw new AppError("This quest has already ended.", 409);
   if (action === "accept" || action === "withdraw") {
     if (session.status !== "offer") throw new AppError("The quest has already started.", 409);
+    if (action === "accept" && session.generationStatus === "pending") throw new AppError("Your nearby suggestion is still being prepared. Please try again in a moment.", 409);
     participant.acceptedAt = action === "accept" ? participant.acceptedAt ?? now : undefined;
     if (session.participants.every((person) => person.acceptedAt)) { session.status = "active"; session.startedAt = now; session.expiresAt = now + 86_400_000; }
   } else if (action === "complete") {
