@@ -50,3 +50,7 @@ Both approved photos and both confirmations create one achievement evidence reco
 The app is a Node service, not a static export. Use persistent storage and HTTPS when hosting. NorthMark deployment and physical ESP32 checks remain external handoff work. Meta image judging has been verified; public venue retrieval has timed out here. The remote PostgreSQL timeout does not block the local SQLite MVP.
 
 The current checks cover password storage, account isolation, recovery, expired/revoked sessions, private photos, concurrent session transitions, duplicate-credit prevention and desktop/mobile journeys. See [TASKS.md](TASKS.md), [DEMO.md](DEMO.md) and [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Optional ESP notification test mode
+
+A separate Node worker reads new events from the Python ingestion service's authenticated `GET /events` over HTTPS (`PROXIMITY_API_URL`), so QuestGo needs no connection to the ESP database. Notification state lives in a local SQLite file shared by the website and worker. Web Push reaches anonymous opted-in browsers through a push-only service worker. This user-requested test broadcast includes every new event type and bypasses user/device matching; it does not modify the existing quest lifecycle. The worker must run independently of website requests. See [NOTIFICATIONS.md](NOTIFICATIONS.md).

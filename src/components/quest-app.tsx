@@ -23,6 +23,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { AppView, Preferences } from "@/lib/model";
+import { NotificationSettings } from "./notification-settings";
 import { ProfileForm } from "./profile-form";
 import { SessionPanel } from "./session-panel";
 import { AchievementGallery } from "./achievement-photos";
@@ -176,6 +177,7 @@ export function QuestApp() {
         <a className="app-logo" href="/">
           <span>✳</span> Quest<i>Go.</i>
         </a>
+        <NotificationSettings />
         <div className="entry-layout">
           <section className="entry-story">
             <span className="section-kicker">
@@ -363,6 +365,7 @@ export function QuestApp() {
           </div>
         )}
         <main className="app-main">
+          <NotificationSettings />
           <div className="app-heading">
             <div>
               <span className="section-kicker">

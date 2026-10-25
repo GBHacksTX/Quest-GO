@@ -113,3 +113,7 @@ The remote database still times out and remains optional for this local MVP. Goo
 - [Product](docs/PRODUCT.md), [architecture](docs/ARCHITECTURE.md), [tasks](docs/TASKS.md), [API](docs/API.md), and [agent guidelines](docs/AGENTS.md).
 
 Feature work uses focused local commits. A separate integration branch is rebased and squash-merged into local `main`, keeping the original feature branch unchanged. Nothing is pushed to origin.
+
+## ESP event push notifications
+
+Optional test broadcasts notify every browser that opts in under `/explore`, including when its tab is closed. A persistent notification worker reads new events from the ESP server over HTTPS (no database connection needed). Follow [notification setup](docs/NOTIFICATIONS.md).

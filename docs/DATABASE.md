@@ -29,3 +29,7 @@ Both PostgreSQL and demo SQLite store the photo bytes alongside session data. Th
 QuestGo now uses the PostgreSQL schema `questgo_app`, with an explicit connection search path that excludes public datasets. Migration 003 creates `questgo_photo_submissions`, `questgo_photo_validations`, and `questgo_achievements`. These are new tables; migration 003 does not update, delete or replace existing records. Each submitted image and each validation attempt is retained as a new record. A submission snapshots its quest’s photo criteria. Pending and final validation events use increasing ordinals; completion requires the latest submission’s approval. Meta requests run outside database transactions. Existing legacy photo rows remain readable. Completed achievement evidence is inserted once per session.
 
 The schema is intentionally separate from similarly named tables in `public`. Existing deployments that used public QuestGo tables are not silently copied or overwritten; any migration of those records must be an explicit later action. Local PostgreSQL verification includes an existing `public.app_users` record and checks that it remains unchanged.
+
+## ESP test notifications
+
+ESP test notifications do not use PostgreSQL. Their subscriptions, event baseline and delivery queue live in a local SQLite file (`.questgo/notifications.sqlite`, created automatically), and events are read from the ESP server over HTTPS. Do not run `001_core.sql` on the ESP database because its `devices` table has a different shape. Details: [NOTIFICATIONS.md](NOTIFICATIONS.md).

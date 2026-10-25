@@ -160,3 +160,17 @@ Focused commits on `feat/password-accounts`:
 - `66ce9e4`: `feat(auth): replace OAuth with direct cookie-based sign-in`.
 
 Integration uses `integration/password-accounts` rebased onto local `main`, then a local squash merge. The feature branch remains unchanged after integration.
+
+## ESP test broadcast notifications
+
+**Branch:** `feat/proximity-notifications` (keep checked out for user testing).
+
+**Scope:** Independent ESP event database, opt-in anonymous test broadcasts, service worker push notifications, persistent subscription/delivery storage, and a continuously running event watcher. Every new event type broadcasts to all subscribers. See [NOTIFICATIONS.md](NOTIFICATIONS.md) for setup and verification boundaries.
+
+**External blocker (resolved by the HTTPS relay below):** Supplied Timescale endpoint times out before authentication from this machine.
+
+**Local validation:** TypeScript, 14 unit/integration tests (including real PostgreSQL-compatible notification SQL via PGlite), production build and 10 API/browser scenarios pass. Mobile/desktop screenshots inspected. The feature remains on its requested notification branch rather than being integrated into main; no remote push.
+
+**Sound follow-up:** Added a database-independent test chime and opt-in foreground event sound. Background notifications request the system's normal sound. Database reconnection still times out before authentication.
+
+**HTTPS relay follow-up:** The Timescale port is blocked on the event Wi-Fi, so the worker now reads events from the deployed ESP server's `GET /events` over HTTPS and keeps notification state in local SQLite; the `questgo_notifications` Postgres migration was removed. Events are smoothed per device pair so radio blips do not notify, and `npm run notifications:test-event` sends a fake event. Verified live: real board events and test events were delivered as browser pushes.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  icons: { apple: "/notification-icon-192.png" },
   title: "QuestGo — A little closer. A little more adventure.",
   description: "Turn a nearby hello into a shared real-world adventure. Explore the QuestGo experience.",
 };

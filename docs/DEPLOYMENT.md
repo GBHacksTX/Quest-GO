@@ -41,3 +41,5 @@ Docker is unavailable here, so the container build itself remains unverified.
 ## Hosted check
 
 `/api/health` should report `ready` when the selected account store can be read. This does not verify Meta, venue services or physical devices. Create two accounts in different browser profiles, link two provisioned ESP32s, observe fresh heartbeats, opt in and trigger a real encounter. Verify the shared offer, both acceptances, both approved photos, both confirmations and one history/streak update. Verify logout and recovery revoke previous session cookies.
+
+For optional ESP test broadcasts, set `PROXIMITY_API_URL`/`PROXIMITY_API_TOKEN` for the ESP server and supervise exactly one `npm run notifications:worker` alongside the web process on the same machine (they share a local SQLite file, so use persistent disk). Keep VAPID keys stable and use HTTPS. See [notification setup](NOTIFICATIONS.md).

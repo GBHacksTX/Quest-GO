@@ -117,3 +117,7 @@ Research references consulted on October 24, 2026:
 - [Awwwards: storytelling websites](https://www.awwwards.com/websites/storytelling/) — illustration and visual narrative as inspiration; no source artwork copied.
 
 See [INTEGRATIONS.md](INTEGRATIONS.md) for readiness and verification boundaries.
+
+## ESP notification testing exception
+
+An explicitly enabled test broadcast now offers browser push notifications from `/explore`, including while its tab is closed on supported browsers. Visitors opt in without login or pairing; every new ESP event type goes to all subscribed test browsers. This overrides the earlier no-background-notifications scope only for testing, not for real quest matching or per-user alerts. The notification service reads the external ESP event database and does not create shared quests. See [NOTIFICATIONS.md](NOTIFICATIONS.md).
