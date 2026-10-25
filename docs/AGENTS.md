@@ -216,6 +216,8 @@ Do not knowingly commit a broken application state unless explicitly requested f
 
 ## 11. Git Rules
 
+The user authorizes agents to create local commits and perform the documented local integration workflow. Never push to origin or any remote. Keep commits focused and report their messages and identifiers. Preserve completed feature branches unchanged.
+
 Commits must be intentional and logically scoped.
 
 A commit should tell one understandable story.
@@ -277,6 +279,17 @@ git log --oneline -5
 ```
 
 Do not begin by rewriting files that another contributor may be actively modifying unless the task requires it.
+
+### Feature Branch and Integration Workflow
+
+1. Start each feature on its own `feat/<feature-name>` branch from the current `main`. Record the branch in `TASKS.md`. Do not implement features directly on `main`.
+2. Implement and validate the feature on that branch. Review, stage, and commit only the feature work locally.
+3. After the feature is committed, preserve its branch and commits exactly as they are. Keep the branch after integration; do not rebase, squash, merge into, reset, or delete it.
+4. For local integration, create a separate `integration/<feature-name>` branch at the feature branch's tip and rebase that copy onto the latest `main`. Resolve any conflicts on the integration copy and validate the result.
+5. Squash merge the integration copy into `main` so the feature becomes one commit on `main`. Create the final squash commit locally. Never push it.
+6. Keep the original `feat/<feature-name>` branch unchanged. Start the next feature from the updated `main`.
+
+Rebasing the integration copy provides an up-to-date result while preserving the original feature history. Only begin integration with committed work and a clean working tree; never carry unrelated edits between branches.
 
 ### Keep Changes Localized
 
@@ -391,7 +404,7 @@ unless explicitly instructed.
 
 Do not hold several independent completed features in one uncommitted working tree.
 
-Once a coherent feature is working and validated, commit it before beginning an unrelated feature.
+Once a coherent feature is working and validated, make a focused local commit before beginning an unrelated feature.
 
 This reduces both merge risk and accidental mixing of work.
 
@@ -461,6 +474,8 @@ Read relevant documentation
       ↓
 Inspect repository and current Git state
       ↓
+Create feat/<feature-name> branch from current main
+      ↓
 Identify smallest coherent solution
       ↓
 Implement localized changes
@@ -471,7 +486,11 @@ Review git diff
       ↓
 Update documentation if required
       ↓
-Create intentional commit
+Create focused local feature commit
+      ↓
+Rebase integration copy and squash merge locally
+      ↓
+Commit integration on main; original feature branch stays unchanged; never push
 ```
 
 Do not jump directly from a prompt to large-scale code generation without inspecting the repository.
@@ -486,7 +505,8 @@ After completing work, report:
 - files materially changed
 - important architectural/domain decisions
 - validation performed
-- commit created
+- feature branch and local commit message/identifier
+- local integration status; no remote push
 - unresolved blocker, if any
 
 Keep the report concise.
@@ -503,8 +523,10 @@ A task is complete when:
 - no obvious unrelated behavior was broken
 - documentation reflects meaningful changes
 - secrets are not committed
-- the Git commit is coherent and intentional
+- the changes have a coherent local commit
 - unrelated contributor changes were preserved
 - the change is reasonably isolated to reduce future merge conflicts
 
 A feature being technically possible is not enough. It should be in a state another teammate or agent can understand, integrate, and continue from.
+
+Report implementation readiness separately from integration. A feature is integrated only after the local squash merge is committed into `main`; preserve its original feature branch afterward.

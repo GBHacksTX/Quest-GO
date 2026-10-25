@@ -67,6 +67,13 @@ is planned and is not yet integrated.
 ### Hardware
 - ESP32
 
+### Confirmed requirements awaiting integration design
+
+- ESP32 firmware is supplied by a teammate and reports encounters over Wi-Fi. The reporting destination, payload, device claim method, and sender authentication still need agreement; the diagram below is conceptual rather than a complete device protocol.
+- Encounter discovery may require the website to remain open while a user is available. Background notifications are outside the MVP.
+- Real nearby venues and potentially paid activities are required. A trustworthy place-data integration and location handling must be selected; Gemini alone does not establish venue accuracy. Neither integration is implemented yet.
+- Both Google and Facebook remain required login providers. See `PRODUCT.md` for the confirmed scope and proposed journey awaiting review.
+
 > The stack may change during development. Update this file whenever a major technology or architectural decision changes.
 
 ---

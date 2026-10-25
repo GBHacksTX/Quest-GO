@@ -13,6 +13,34 @@ Checked October 24, 2026 during step 1. The initial application runs independent
 
 No external integration is claimed as working. These blockers do not prevent running the step 1 UI. Credentials belong in ignored local environment files or the hosting secret store; never commit them. `.env.example` contains blank assignments only. Hosting variable names and the hardware contract remain undecided rather than inventing unsupported configuration.
 
+## Environment setup
+
+A local `.env` has been created for the planning handoff. Provider credentials are blank; `AUTH_SECRET` was generated locally. The file is ignored by Git. `.env.example` remains the shareable template and contains no secrets. These entries reserve names for planned integrations; adding values does not implement the integrations.
+
+Enter credentials directly in `.env` on this computer rather than pasting them into chat. Do not overwrite the file if it already contains values. No external credentials are needed for the existing preview or a future clearly labeled UI walkthrough.
+
+| Variable | What belongs here | When it is needed |
+| --- | --- | --- |
+| `DATABASE_URL` | The development PostgreSQL connection string supplied by Tiger Data, including its required connection settings. | Connecting and testing real storage. |
+| `AUTH_SECRET` | A locally generated random secret used by the authentication system. Already populated locally; no provider account is needed for this value. | Implementing real login. |
+| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | The client ID and secret for the project's Google OAuth application. | Verifying Google login and its callback URLs. |
+| `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | The application ID and secret for the project's Meta/Facebook login application. | Verifying Facebook login and its callback URLs. Both login providers are required at launch. |
+| `GEMINI_API_KEY` | A server-side key for the project's Gemini access. | Verifying actual quest generation and the selected venue-grounding approach. |
+
+Collect values one integration at a time after the user-flow review. Public callback URLs and hosting settings depend on the eventual deployment target; the software will document exact values when that setup is implemented. Credentials for the web server's database and AI services do not belong in ESP32 firmware.
+
+### Nearby venue data
+
+Real nearby venues and potentially paid activities are confirmed requirements. The provider has not been selected. Google's official [Gemini Maps grounding documentation](https://ai.google.dev/gemini-api/docs/maps-grounding) describes location-aware responses based on Maps data; evaluate this option before asking the user to configure another service. Model support, access, billing, response handling, and required attribution still need verification for the chosen integration. This research does not establish that the project can call it successfully.
+
+No separate Maps or Places key has been invented in `.env`. Add any additional credential only if the selected approach actually requires it. Location permission and manual area entry are user-flow decisions, not API secrets.
+
+### Hardware and hosting handoff
+
+The user confirmed that a teammate supplies ESP32 firmware and the devices report over Wi-Fi. Agree on the report format, reporting destination, device claim method, and sender authentication with that teammate before adding hardware configuration. Firmware implementation is outside the application's current ownership.
+
+NorthMark hosting access is needed for the connected hosted demo, not for reviewing the UI. Define deployment variables once the actual hosting environment is known.
+
 ## Step 1 application verification
 
 - `npm run typecheck` passed.

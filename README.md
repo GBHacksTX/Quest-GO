@@ -1,16 +1,22 @@
 # Quest-GO
 
+QuestGo turns nearby devices into shared real-world activities.
+
+Start with the [implementation plan](docs/TASKS.md) for the ordered build steps and completion checks. See the [architecture](docs/ARCHITECTURE.md), [domain model](docs/DOMAIN.md), and [agent guidelines](docs/AGENTS.md) for supporting decisions and development rules.
+
 ## Local development
 
 Requires Node.js 22 or newer and npm.
 
 ```sh
 npm ci
-cp .env.example .env.local
+cp -n .env.example .env
 npm run dev
 ```
 
-Open http://localhost:3000. Environment values may remain empty for this initial UI preview; no external services are called. `.env.local` is ignored by Git. Never put secrets in `NEXT_PUBLIC_` variables.
+Open http://localhost:3000. Environment values may remain empty for this initial UI preview; no external services are called. `.env` and `.env.local` are ignored by Git. If `.env` already exists, keep it rather than copying over it. Never put secrets in `NEXT_PUBLIC_` variables.
+
+The [proposed user journey](docs/PRODUCT.md#proposed-user-journey--awaiting-decisions) is the next planning checkpoint before feature implementation. See [environment setup](docs/INTEGRATIONS.md#environment-setup) for what each credential is for and when it is needed.
 
 ```sh
 npm run typecheck
