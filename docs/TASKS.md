@@ -48,6 +48,8 @@ Preserve the domain relationships: a session references one quest, and each part
 
 **Branch:** `feat/authentication`
 
+**Implementation branch:** `feat/authentication-and-api`. Auth.js providers, identity mapping, protected application API, device claims, availability and demo-room authentication are implemented. Two API scenarios pass, including a two-identity end-to-end lifecycle. Real provider sign-in awaits credentials; it is not yet externally verified.
+
 **Work:** Configure Auth.js with Google and Facebook. Persist each user's application identity and provide sign-in and sign-out. Require authentication for personal pages and server operations. Define safe handling of multiple login providers before linking accounts.
 
 **Done when:** Two people can sign in independently, return to their existing accounts, and sign out. An unauthenticated visitor cannot access their private information or actions. Verify each provider with real credentials before marking its integration complete.
