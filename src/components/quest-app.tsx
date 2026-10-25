@@ -40,6 +40,7 @@ export function QuestApp() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [oauthError, setOauthError] = useState(false);
   const [connected, setConnected] = useState(true);
   const [tab, setTab] = useState<Tab>("home");
   const [code, setCode] = useState("");
@@ -63,6 +64,7 @@ export function QuestApp() {
     }
   }, []);
   useEffect(() => {
+    setOauthError(new URLSearchParams(window.location.search).has("error"));
     void fetch("/api/config")
       .then((response) => response.json())
       .then(setConfig)
@@ -201,12 +203,11 @@ export function QuestApp() {
                 {error}
               </div>
             )}
-            {typeof window !== "undefined" &&
-              new URLSearchParams(window.location.search).has("error") && (
-                <div className="app-error" role="alert">
-                  Sign-in didn’t finish. Try again or explore the demo.
-                </div>
-              )}
+            {oauthError && (
+              <div className="app-error" role="alert">
+                Sign-in didn’t finish. Try again or explore the demo.
+              </div>
+            )}
             <button
               className="app-button oauth-button"
               disabled={!config.google || busy}
