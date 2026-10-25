@@ -16,7 +16,7 @@ npm run dev
 
 Open http://localhost:3000. Environment values may remain empty for this initial UI preview; no external services are called. `.env` and `.env.local` are ignored by Git. If `.env` already exists, keep it rather than copying over it. Never put secrets in `NEXT_PUBLIC_` variables.
 
-The [proposed user journey](docs/PRODUCT.md#proposed-user-journey--awaiting-decisions) is the next planning checkpoint before feature implementation. See [environment setup](docs/INTEGRATIONS.md#environment-setup) for what each credential is for and when it is needed.
+The [proposed user journey](docs/PRODUCT.md#user-journey-and-mvp-defaults) is the next planning checkpoint before feature implementation. See [environment setup](docs/INTEGRATIONS.md#environment-setup) for what each credential is for and when it is needed.
 
 ```sh
 npm run typecheck

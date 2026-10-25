@@ -4,7 +4,7 @@
 
 Build a reliable demo in which two people meet, receive one shared quest, both accept it, and both confirm completion. The completed activity then updates their history and streaks.
 
-Step 1 application setup is implemented; final browser visual review remains unverified because browser access was denied. Steps 2–12 are **not started**. The initial screen is an explicitly labeled UI preview; external integrations are not yet configured or verified.
+The user authorized implementation and local commits on October 24, 2026; never push to origin. Step 1 is the original landing-page preview. The transactional session and persistence foundation is implemented on `feat/session-foundation`, with six passing domain/storage tests. Live PostgreSQL still requires credentials and migration verification. The full application UI and integrations are the next milestones.
 
 Follow the steps in order. Each step explains the work and gives a concrete completion check. Update its status as work progresses and record any blocker beside the affected step.
 
@@ -36,7 +36,7 @@ Done when: The application runs locally, the initial UI is polished and responsi
 
 **Branch:** `feat/database-foundation`
 
-**Prerequisite:** Agree on the [proposed user journey](PRODUCT.md#proposed-user-journey--awaiting-decisions) first. The user has requested a complete UI walkthrough before wiring the real integrations. Steps 2–12 below are the earlier build order and must be revised to match the agreed journey before implementation resumes; database work is not the immediate next action.
+**Status:** Domain lifecycle, SQL migration, PostgreSQL adapter and isolated SQLite demo storage implemented on `feat/session-foundation`. Six automated checks pass; real Tiger Data verification awaits `DATABASE_URL`. User-flow defaults are recorded in [PRODUCT.md](PRODUCT.md#user-journey-and-mvp-defaults).
 
 **Work:** Connect the server to Tiger Data/PostgreSQL. Create versioned schema changes, called migrations, for users, authentication records as needed, devices, encounters, quests, sessions, and participants. Add preference and engagement storage when their behavior is defined in later steps.
 
@@ -138,7 +138,7 @@ Run the applicable tests, type checks, and production build. Write a short demo 
 
 ## Decisions to make during implementation
 
-The user-flow decisions in [PRODUCT.md](PRODUCT.md#remaining-decisions-before-feature-implementation) now take priority over the earlier schedule below. Current planning branch: `feat/user-flow-planning`. No feature implementation is authorized by this planning work.
+The user-flow decisions in [PRODUCT.md](PRODUCT.md#remaining-decisions-before-feature-implementation) now take priority over the earlier schedule below. Current planning branch: `feat/user-flow-planning`. The subsequent user instruction authorizes full MVP implementation and local commits, with no remote push.
 
 Confirmed scope includes friends and strangers, both OAuth providers, open-website encounter discovery, real nearby venues and potentially paid activities, and Wi-Fi reporting by teammate-owned ESP32 firmware. Add the venue data integration, location experience, and complete interactive UI walkthrough to the revised task sequence once the flow is agreed.
 
@@ -158,8 +158,8 @@ Record decisions in the relevant product, domain, database, or architecture docu
 
 ## How each step is completed
 
-Before changing code, inspect the current branch and preserve other contributors' work. Create the listed feature branch from the current `main`. At each coherent milestone, verify the behavior, run the relevant checks, review the diff, and update affected docs. Leave staging and committing to the user and supply a Conventional Commit message.
+Before changing code, inspect the current branch and preserve other contributors' work. Create the listed feature branch from the current `main`. At each coherent milestone, verify the behavior, run the relevant checks, review the diff, and update affected docs. Create focused local commits. Do not push to any remote.
 
-After the user commits the feature, provide the commands to create an `integration/<feature-name>` copy, rebase that copy onto the latest `main`, and squash merge it into `main`. The user runs those commands and makes the final commit. Preserve the original feature branch and its commits unchanged, including after integration. Start the next feature from the updated `main`. See [the branch workflow](AGENTS.md#feature-branch-and-integration-workflow) for the complete rules.
+After committing the feature locally, create an `integration/<feature-name>` copy, rebase that copy onto the latest `main`, and squash merge it into `main` with a local commit. Preserve the original feature branch and its commits unchanged, including after integration. Start the next feature from the updated `main`. See [the branch workflow](AGENTS.md#feature-branch-and-integration-workflow) for the complete rules.
 
 Mark a step complete only when its completion check has passed. If credentials, equipment, or access prevent verification, record exactly what remains unverified and continue any independent work that is available.

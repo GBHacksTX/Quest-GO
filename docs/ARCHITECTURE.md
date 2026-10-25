@@ -58,6 +58,8 @@ is planned and is not yet integrated.
 - Tiger Data
 - PostgreSQL
 
+The MVP repository uses normalized entity identities and relationships with typed JSON payloads, through `pg` and versioned SQL migrations. A separate built-in SQLite store supports the explicitly labeled demo without live credentials. It does not replace production PostgreSQL. All domain transitions are transactional. See `DATABASE.md` for the schema and concurrency limits.
+
 ### Cloud / Compute
 - NorthMark Compute & Cloud
 
