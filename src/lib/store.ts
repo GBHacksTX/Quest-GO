@@ -8,9 +8,8 @@ type Row = Record<string, unknown>;
 export type Query = (sql: string, args?: unknown[]) => Promise<Row[]>;
 const globals = globalThis as typeof globalThis & {
   questgoQueue?: Promise<unknown>;
-  questgoDemoDb?: DatabaseSync;
+  questgoSqlite?: Map<string, { db: DatabaseSync; version: number }>;
   questgoPool?: Pool;
-  questgoDemoVersion?: number;
 };
 const migrations = readdirSync(path.join(process.cwd(), "migrations"))
   .filter((file) => /^\d+_.*\.sql$/.test(file))
@@ -19,7 +18,14 @@ const migrations = readdirSync(path.join(process.cwd(), "migrations"))
     version: Number(file.split("_")[0]),
     sql: readFileSync(path.join(process.cwd(), "migrations", file), "utf8"),
   }));
-export const liveStorageReady = () => !!process.env.DATABASE_URL;
+export function storageMode(): "sqlite" | "postgres" {
+  const mode = process.env.QUESTGO_STORAGE || "sqlite";
+  if (mode !== "sqlite" && mode !== "postgres")
+    throw new Error("Set QUESTGO_STORAGE to sqlite or postgres.");
+  return mode;
+}
+export const liveStorageReady = () =>
+  storageMode() === "sqlite" || !!process.env.DATABASE_URL;
 // Keep the user's other datasets and similarly named public tables untouched.
 export const APP_SCHEMA = "questgo_app";
 export const postgresOptions = {
@@ -173,6 +179,10 @@ async function save(query: Query, state: State) {
   }
 }
 export async function migrate() {
+  if (storageMode() === "sqlite") {
+    await transact(false, () => undefined);
+    return;
+  }
   if (!process.env.DATABASE_URL)
     throw new Error("Set DATABASE_URL before running live migrations.");
   const pool = new Pool({
@@ -214,19 +224,29 @@ export async function transact<T>(
   operation: (state: State, query: Query) => T | Promise<T>,
 ): Promise<T> {
   const run = async () => {
-    if (demo) {
-      if (!globals.questgoDemoDb) {
-        const directory =
-          process.env.QUESTGO_DATA_DIR || path.join(process.cwd(), ".questgo");
+    if (demo || storageMode() === "sqlite") {
+      const directory =
+        process.env.QUESTGO_DATA_DIR || path.join(process.cwd(), ".questgo");
+      const file = path.join(
+        directory,
+        demo ? "demo.sqlite" : "accounts.sqlite",
+      );
+      const databases = (globals.questgoSqlite ??= new Map<
+        string,
+        { db: DatabaseSync; version: number }
+      >());
+      let entry = databases.get(file);
+      if (!entry) {
         mkdirSync(directory, { recursive: true, mode: 0o700 });
-        const db = new DatabaseSync(path.join(directory, "demo.sqlite"));
+        const db = new DatabaseSync(file);
         db.exec(
           "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
         );
-        globals.questgoDemoDb = db;
+        entry = { db, version: 0 };
+        databases.set(file, entry);
       }
-      const db = globals.questgoDemoDb;
-      if (globals.questgoDemoVersion !== migrations.length) {
+      const db = entry.db;
+      if (entry.version !== migrations.length) {
         db.exec("BEGIN IMMEDIATE");
         try {
           db.exec(
@@ -246,7 +266,7 @@ export async function transact<T>(
             ).run(migration.version, new Date().toISOString());
           }
           db.exec("COMMIT");
-          globals.questgoDemoVersion = migrations.length;
+          entry.version = migrations.length;
         } catch (error) {
           db.exec("ROLLBACK");
           throw error;

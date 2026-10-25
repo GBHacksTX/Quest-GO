@@ -144,3 +144,8 @@ Integration uses a separate `integration/validated-achievements` copy, rebased o
 Branch: `feat/auth-session-switch`. Provider sign-in clears the active demo cookie before leaving QuestGo, including when OAuth later fails. Successful provider callbacks also clear any remaining demo identity. Demo records are retained; no account data is merged or reset. Google requests account selection. A regression check covers leaving an existing demo, the exact Google callback, account selection, preservation of the saved room and the error screen after a failed login.
 
 Validation: 17 automated tests, the production build and eight browser/API scenarios. Real callback completion still depends on Google settings and live database access; initiating the login flow is tested independently of those external steps.
+
+
+## Password accounts and browser sessions
+
+Branch: `feat/password-accounts`. Remove OAuth providers and replace them with direct registration, email/password login, logout and recovery codes. Use separate local account storage so the MVP runs without external authentication keys or a reachable remote database. Add new credential/session tables, preserve existing datasets, test account isolation and session revocation, then connect the existing UI and update the setup instructions. Backend storage and account functions are implemented first; UI wiring follows on this branch.

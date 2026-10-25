@@ -32,6 +32,7 @@ async function main() {
       "This check only runs against a local database named questgo_test.",
     );
   process.env.DATABASE_URL = url;
+  process.env.QUESTGO_STORAGE = "postgres";
   const sentinel = new Pool({ connectionString: url });
   await sentinel.query(
     "CREATE TABLE IF NOT EXISTS public.app_users(id TEXT PRIMARY KEY,data TEXT NOT NULL)",

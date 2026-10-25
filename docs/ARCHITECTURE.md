@@ -262,3 +262,8 @@ Each participant uploads their own photo through an authenticated, same-origin m
 ## Shared photo judge
 
 Arjit Magar’s generator and image judge are shared by the standalone `validation/` lab and the main app through `shared/quest-ai.ts`. `shared/meta-ai.ts` uses Meta’s authenticated chat-completions API with image content parts. Main-app live validation never reads `MUSE_MOCK`; only explicitly isolated demo actions can simulate approval. Provider errors are sanitized and incomplete evidence responses fail closed.
+
+
+## Local accounts and storage — current change
+
+The user replaced Google/Facebook OAuth with first-party email/password accounts and opaque browser session cookies. No paid authentication or email service is used. A dedicated SQLite `accounts.sqlite` file is now the explicit local default, separate from demo data; PostgreSQL remains selectable through `QUESTGO_STORAGE=postgres`. This removes the failing remote connection from local account creation while preserving all existing datasets. Password and recovery/session token storage are defined in `DATABASE.md`.
