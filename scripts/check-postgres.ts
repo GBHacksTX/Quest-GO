@@ -9,6 +9,12 @@ import {
 } from "../src/lib/achievement-photos";
 import { migrate, transact, postgresOptions } from "../src/lib/store";
 import {
+  registerAccount,
+  signInAccount,
+  readLoginSession,
+  recoverAccount,
+} from "../src/lib/accounts";
+import {
   encounter,
   hash,
   makeUser,
@@ -42,6 +48,26 @@ async function main() {
   );
   await sentinel.end();
   await migrate();
+  const email = `postgres-${randomUUID()}@example.com`;
+  const password = "a private postgres test password";
+  const registration = await registerAccount({
+    email,
+    password,
+    displayName: "Storage check",
+  });
+  const token = await signInAccount({ email, password });
+  assert.ok(await readLoginSession(token));
+  await recoverAccount({
+    email,
+    password: password + " updated",
+    recoveryCode: registration.recoveryCode,
+  });
+  assert.equal(await readLoginSession(token), undefined);
+  assert.ok(
+    await readLoginSession(
+      await signInAccount({ email, password: password + " updated" }),
+    ),
+  );
   const prefix = randomUUID();
   const ids = [`${prefix}-a`, `${prefix}-b`];
   const sessionId = await transact(false, (state) => {

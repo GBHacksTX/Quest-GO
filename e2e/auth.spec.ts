@@ -205,6 +205,22 @@ test("cookie sessions isolate users, leave demos, revoke on logout and rotate re
         })
       ).status(),
     ).toBe(403);
+    const limitedEmail = `limited-${randomUUID()}@example.com`;
+    for (let attempt = 0; attempt < 8; attempt++)
+      expect(
+        (
+          await a.post("/api/account", {
+            data: { action: "login", email: limitedEmail, password: "wrong" },
+          })
+        ).status(),
+      ).toBe(401);
+    expect(
+      (
+        await a.post("/api/account", {
+          data: { action: "login", email: limitedEmail, password: "wrong" },
+        })
+      ).status(),
+    ).toBe(429);
   } finally {
     await a.dispose();
     await b.dispose();
