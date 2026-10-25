@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 import { z } from "zod";
 import { actor } from "@/lib/identity";
 import { transact } from "@/lib/store";
@@ -11,8 +12,14 @@ import {
   isOpen,
   sessionAction,
   setAvailable,
+  startFriendQuest,
   view,
 } from "@/lib/domain";
+import { withFriend } from "@/lib/friend-view";
+import { combinedPreferences, generateAndSave } from "@/lib/generation";
+import { pairProximity } from "@/lib/notifications/store";
+import { friendOf } from "@/lib/players";
+import type { Preferences } from "@/lib/model";
 import { failure, jsonBody, limit, sameOrigin } from "@/lib/http";
 
 const preferences = z.object({
@@ -42,6 +49,7 @@ const command = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("dismiss"), sessionId: z.string().uuid() }),
   z.object({ action: z.literal("demoEncounter") }),
+  z.object({ action: z.literal("friendQuest") }),
   z.object({
     action: z.literal("demoPartner"),
     sessionId: z.string().uuid(),
@@ -56,7 +64,7 @@ export async function GET() {
       const now = Date.now();
       if (user.availableUntil && user.availableUntil > now)
         user.availableUntil = now + 45_000;
-      return view(state, identity.id, identity.demo);
+      return withFriend(state, view(state, identity.id, identity.demo));
     });
     return Response.json(data, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -69,6 +77,7 @@ export async function POST(request: Request) {
     const identity = await actor();
     limit(`actions:${identity.id}`, 100);
     const input = await jsonBody(request, command);
+    let generate: { sessionId: string; preferences: Preferences } | undefined;
     const data = await transact(identity.demo, (state) => {
       expireSessions(state);
       const user = getUser(state, identity.id);
@@ -97,6 +106,26 @@ export async function POST(request: Request) {
             "Finish or leave the quest before returning home.",
           );
         user.dismissedSessionId = session.id;
+      }
+      if (input.action === "friendQuest") {
+        const pair = friendOf(state, user.id);
+        if (!pair)
+          throw new AppError("Friend quests are for the two players.", 403);
+        if (!pairProximity(pair.me.espId, pair.other.espId).near)
+          throw new AppError(
+            `${pair.friend.displayName} isn’t near you right now. Bring your boards together and try again.`,
+            409,
+          );
+        const { session, created } = startFriendQuest(
+          state,
+          user.id,
+          pair.friend.id,
+        );
+        if (created)
+          generate = {
+            sessionId: session.id,
+            preferences: combinedPreferences(state, session),
+          };
       }
       if (input.action === "demoEncounter" || input.action === "demoPartner") {
         if (!identity.demo || !user.demoRoom)
@@ -149,8 +178,18 @@ export async function POST(request: Request) {
           sessionAction(state, partner.id, input.sessionId, input.operation);
         }
       }
-      return view(state, user.id, identity.demo);
+      return withFriend(state, view(state, user.id, identity.demo));
     });
+    // Venue lookup and Meta AI can take a while; the page shows a loading
+    // state and picks up the finished quest on its next poll.
+    if (generate) {
+      const job = generate;
+      after(() =>
+        generateAndSave(job.sessionId, job.preferences).catch(() => {
+          // The session falls back to the free activity after 30 seconds.
+        }),
+      );
+    }
     return Response.json(data, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return failure(error);

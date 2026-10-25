@@ -6,6 +6,15 @@ QuestGo helps friends and strangers move from being near each other to sharing a
 
 The point is to make starting an interaction easier without pressuring anyone to participate. Device proximity starts an opportunity; people decide what happens next.
 
+## Quick start: Prabesh and Ramu
+
+```sh
+npm ci
+npm run dev:all   # website + ESP board watcher
+```
+
+Open <http://localhost:3000/explore> and choose **Prabesh** or **Ramu** (the username is your board's pairing code). When your ESP boards come close, the page says your friend is near and you can start a shared quest together. **Switch** in the top bar lets one device play both sides. Add `META_AI_API_KEY` to `.env` for real AI photo checks and quest writing; without it checks are simulated and labelled. Details: [docs/PLAYERS.md](docs/PLAYERS.md).
+
 ## The experience, step by step
 
 | Step | What the person does | Why it works this way |
@@ -116,4 +125,4 @@ Feature work uses focused local commits. A separate integration branch is rebase
 
 ## ESP event push notifications
 
-Optional test broadcasts notify every browser that opts in under `/explore`, including when its tab is closed. A persistent notification worker reads new events from the ESP server over HTTPS (no database connection needed). Follow [notification setup](docs/NOTIFICATIONS.md).
+Board events notify every browser that opts in under `/explore`, including when its tab is closed; a "near" popup invites both players to start a quest. A persistent notification worker reads new events from the ESP server over HTTPS (no database connection needed). Follow [notification setup](docs/NOTIFICATIONS.md).

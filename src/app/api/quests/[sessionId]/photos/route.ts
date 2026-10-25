@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { actor } from "@/lib/identity";
-import { AppError, expireSessions } from "@/lib/domain";
+import { AppError, expireSessions, getUser } from "@/lib/domain";
+import { isPlayer } from "@/lib/players";
+import { metaConfigured } from "../../../../../../shared/meta-ai";
 import { transact } from "@/lib/store";
 import { failure, limit, sameOrigin } from "@/lib/http";
 import {
@@ -22,7 +24,7 @@ export async function POST(
     const { sessionId } = z
       .object({ sessionId: z.string().uuid() })
       .parse(await context.params);
-    await transact(identity.demo, (state) => {
+    const player = await transact(identity.demo, (state) => {
       expireSessions(state);
       const session = photoSession(state, identity.id, sessionId);
       if (
@@ -34,6 +36,7 @@ export async function POST(
           "Add or change your photo before confirming an active quest.",
           409,
         );
+      return isPlayer(getUser(state, identity.id));
     });
     const form = await photoForm(request);
     const file = form.get("photo");
@@ -51,7 +54,10 @@ export async function POST(
       sessionId,
       image,
       identity.id,
-      !identity.demo || form.get("validationMode") === "meta",
+      // Players use Meta when a key is set, otherwise a labelled simulation.
+      identity.demo
+        ? form.get("validationMode") === "meta"
+        : !player || metaConfigured(),
     );
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

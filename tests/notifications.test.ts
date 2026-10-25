@@ -160,11 +160,11 @@ test("noisy disconnect/reconnect blips are smoothed into clean announcements", (
     assert.equal(poll(300, "hotspot_connected", "peer_detected"), 0);
     assert.equal(poll(303, "peer_near"), 1);
     assert.deepEqual(bodies(), [
-      "Ramu and Prabesh are near each other",
+      "Ramu and Prabesh are near each other. Open QuestGo to start a quest!",
       "Ramu and Prabesh are out of range",
-      "Ramu and Prabesh are near each other",
+      "Ramu and Prabesh are near each other. Open QuestGo to start a quest!",
       "Test event from Ramu",
-      "Ramu and Prabesh are near each other",
+      "Ramu and Prabesh are near each other. Open QuestGo to start a quest!",
     ]);
   } finally {
     db.close();
@@ -201,7 +201,7 @@ test("notifications use device owner names from the ESP server", () => {
       detected_by: "Ramu",
       other_person: "Prabesh",
     }).body,
-    "Ramu and Prabesh are near each other",
+    "Ramu and Prabesh are near each other. Open QuestGo to start a quest!",
   );
   assert.equal(
     eventNotification({ ...base, event_type: "peer_far" }).body,

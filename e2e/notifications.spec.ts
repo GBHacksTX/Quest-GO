@@ -59,7 +59,7 @@ for (const width of [390, 1440]) {
         });
     });
     await page.goto("/explore");
-    const panel = page.getByRole("region", { name: "ESP test notifications" });
+    const panel = page.getByRole("region", { name: "Board notifications" });
     await expect(panel).toBeVisible();
     expect(actions).toEqual([]);
     await panel

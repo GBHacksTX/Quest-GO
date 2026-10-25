@@ -23,14 +23,18 @@ export const metaModel = (vision = false) =>
   process.env.META_AI_MODEL ||
   process.env.MUSE_MODEL ||
   "muse-spark-1.3";
-export const metaConfigured = () =>
-  !!(process.env.META_AI_API_KEY || process.env.MUSE_API_KEY);
+// META_AI_API_KEY is QuestGo's name; MODEL_API_KEY is the one in Meta's docs.
+const metaKey = () =>
+  process.env.META_AI_API_KEY ||
+  process.env.MODEL_API_KEY ||
+  process.env.MUSE_API_KEY;
+export const metaConfigured = () => !!metaKey();
 
 export async function callMuseJson<T>(
   messages: MuseMessage[],
   options: MuseOptions = {},
 ): Promise<T> {
-  const apiKey = process.env.META_AI_API_KEY || process.env.MUSE_API_KEY;
+  const apiKey = metaKey();
   if (!apiKey)
     throw new MuseError(
       "Photo checking is not configured. Please try again later.",

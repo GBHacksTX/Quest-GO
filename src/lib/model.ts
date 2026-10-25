@@ -34,7 +34,7 @@ export type Quest = {
   costEstimate: number | null;
   budgetLimit?: number;
   mode: "normal" | "work";
-  source: "demo" | "osm" | "fallback";
+  source: "demo" | "osm" | "fallback" | "ai";
   venue?: {
     name: string;
     address: string;
@@ -124,4 +124,14 @@ export type AppView = {
   demo: boolean;
   demoRoom?: string;
   partnerName?: string;
+  // Two-player mode: the signed-in player and their friend's board status.
+  player?: { code: string; name: string };
+  friend?: {
+    code: string;
+    name: string;
+    near: boolean;
+    since?: number;
+    watcherOnline: boolean;
+  };
+  photoCheck?: "meta" | "simulated";
 };

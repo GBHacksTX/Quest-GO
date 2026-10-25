@@ -24,11 +24,13 @@ export function SessionPanel({
   busy,
   perform,
   onUpdated,
+  switchPlayer,
 }: {
   data: AppView;
   busy: boolean;
   perform: Perform;
   onUpdated: (data: AppView) => void;
+  switchPlayer?: { name: string; run: () => void };
 }) {
   const session = data.session!;
   const self = session.people.find((person) => person.id === data.user.id)!;
@@ -96,7 +98,11 @@ export function SessionPanel({
         >
           Back to exploring <ArrowRight size={17} />
         </button>
-        <small>You’ll be paused until you choose to be available again.</small>
+        <small>
+          {data.friend
+            ? `Start another quest whenever ${data.friend.name} is near.`
+            : "You’ll be paused until you choose to be available again."}
+        </small>
       </section>
     );
   return (
@@ -132,7 +138,9 @@ export function SessionPanel({
                 ? "Sample activity"
                 : quest.source === "osm"
                   ? "Nearby discovery"
-                  : "Free fallback"}
+                  : quest.source === "ai"
+                    ? "Written by Meta AI"
+                    : "Free fallback"}
             </span>
           </div>
           <h2>{quest.title}</h2>
@@ -220,6 +228,9 @@ export function SessionPanel({
               </a>
               . {quest.sourceText}
             </p>
+          )}
+          {quest.source === "ai" && (
+            <p className="source-note">{quest.sourceText}</p>
           )}
           {quest.source === "fallback" && (
             <p className="source-note">
@@ -349,6 +360,19 @@ export function SessionPanel({
               </div>
             ))}
           </div>
+          {switchPlayer &&
+            (session.status === "offer"
+              ? !partner.accepted
+              : !partner.completed) && (
+              <button
+                className="text-action switch-hint"
+                disabled={busy}
+                onClick={switchPlayer.run}
+              >
+                Playing both sides on this device? Switch to {switchPlayer.name}{" "}
+                <ArrowRight size={12} />
+              </button>
+            )}
           {session.status === "offer" ? (
             <>
               {self.accepted ? (

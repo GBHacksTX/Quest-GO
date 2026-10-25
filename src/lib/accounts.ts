@@ -55,7 +55,7 @@ export async function registerAccount(
     return { recoveryCode };
   });
 }
-async function insertSession(query: Query, userId: string) {
+export async function insertSession(query: Query, userId: string) {
   const token = randomBytes(32).toString("base64url");
   const now = Date.now();
   await query(

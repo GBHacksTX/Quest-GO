@@ -46,12 +46,14 @@ export function collectEvents(
     );
     const getPair = db.prepare("SELECT * FROM pair_state WHERE pair=?");
     const putPair = db.prepare(
-      `INSERT INTO pair_state(pair,announced,pending,pending_since,pending_event) VALUES(?,?,?,?,?)
+      `INSERT INTO pair_state(pair,announced,pending,pending_since,pending_event,announced_at) VALUES(?,?,?,?,?,?)
        ON CONFLICT(pair) DO UPDATE SET announced=excluded.announced,pending=excluded.pending,
-       pending_since=excluded.pending_since,pending_event=excluded.pending_event`,
+       pending_since=excluded.pending_since,pending_event=excluded.pending_event,
+       announced_at=CASE WHEN pair_state.announced IS excluded.announced
+         THEN pair_state.announced_at ELSE excluded.announced_at END`,
     );
     const settled = (pair: string, status: string | null) =>
-      putPair.run(pair, status, null, null, null);
+      putPair.run(pair, status, null, null, null, now);
     const ordered = [...events].sort(
       (a, b) =>
         Date.parse(String(a.received_at)) - Date.parse(String(b.received_at)) ||
@@ -115,7 +117,14 @@ export function collectEvents(
         announce(event);
         settled(key, "near");
       } else if (status !== pair.pending) {
-        putPair.run(key, pair.announced, status, now, JSON.stringify(event));
+        putPair.run(
+          key,
+          pair.announced,
+          status,
+          now,
+          JSON.stringify(event),
+          now,
+        );
       }
     }
     // Announce moves away that held for the whole settle window.

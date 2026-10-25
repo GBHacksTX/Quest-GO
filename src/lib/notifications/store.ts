@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS pair_state (
  announced TEXT,
  pending TEXT,
  pending_since INTEGER,
- pending_event TEXT
+ pending_event TEXT,
+ announced_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS notification_pending ON deliveries(next_attempt_at) WHERE status='pending';`;
 
@@ -51,6 +52,12 @@ export function openNotificationDb(
     "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;",
   );
   db.exec(schema);
+  // Databases created before announced_at existed.
+  const columns = db.prepare("PRAGMA table_info(pair_state)").all() as {
+    name: string;
+  }[];
+  if (!columns.some((column) => column.name === "announced_at"))
+    db.exec("ALTER TABLE pair_state ADD COLUMN announced_at INTEGER");
   return db;
 }
 export const notificationDb = () =>
@@ -92,4 +99,24 @@ export function workerOnline(db = notificationDb()) {
     .prepare("SELECT last_poll_at FROM worker_state WHERE id=1")
     .get() as { last_poll_at: number } | undefined;
   return !!row && row.last_poll_at > Date.now() - 60_000;
+}
+
+// Whether two boards are announced as near each other right now, using the
+// worker's smoothed status. Without a running worker the status is unknown.
+export function pairProximity(a: number, b: number, db = notificationDb()) {
+  const rows = db
+    .prepare(
+      "SELECT announced,announced_at FROM pair_state WHERE pair IN (?,?) ORDER BY COALESCE(announced_at,0) DESC",
+    )
+    .all(`${a}-${b}`, `${b}-${a}`) as {
+    announced: string | null;
+    announced_at: number | null;
+  }[];
+  const online = workerOnline(db);
+  const latest = rows[0];
+  return {
+    watcherOnline: online,
+    near: online && latest?.announced === "near",
+    since: latest?.announced_at ?? undefined,
+  };
 }

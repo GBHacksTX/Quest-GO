@@ -138,15 +138,15 @@ export function NotificationSettings() {
   return (
     <section
       className="notification-settings"
-      aria-label="ESP test notifications"
+      aria-label="Board notifications"
     >
       <div>
         <Bell size={22} aria-hidden="true" />
-        <h2>Hear when devices meet.</h2>
+        <h2>Get a popup when your boards meet.</h2>
       </div>
       <p>
-        Test broadcast: every new ESP event goes to everyone who opts in. No
-        sign-in or device pairing needed.
+        Works even with this tab closed. Board events go to every browser that
+        turns this on.
       </p>
       {!supported ? (
         <p>

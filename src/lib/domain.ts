@@ -266,6 +266,71 @@ export function encounter(
   for (const user of users) user.availableUntil = undefined;
   return { session, duplicate: false };
 }
+// Two friends whose boards report "near" start a quest together. The caller
+// checks proximity; this enforces one open quest per person. The quest text
+// starts as a free fallback and is replaced once suggestions are ready.
+export function startFriendQuest(
+  state: State,
+  userId: string,
+  friendId: string,
+  now = Date.now(),
+) {
+  expireSessions(state, now);
+  const users = [getUser(state, userId), getUser(state, friendId)];
+  if (users[0].id === users[1].id)
+    throw new AppError("A quest needs two different people.");
+  const open = state.sessions.find(
+    (session) =>
+      isOpen(session) &&
+      session.participants.some((person) =>
+        users.some((user) => user.id === person.userId),
+      ),
+  );
+  if (open) {
+    const together = users.every((user) =>
+      open.participants.some((person) => person.userId === user.id),
+    );
+    if (together) return { session: open, created: false };
+    throw new AppError("Someone already has a quest in progress.", 409);
+  }
+  const mode = users.some((user) => user.preferences.mode === "work")
+    ? "work"
+    : "normal";
+  const quest = fallbackQuest(
+    mode,
+    Math.min(...users.map((user) => user.preferences.minutes)),
+  );
+  const session: QuestSession = {
+    id: randomUUID(),
+    encounterId: `friend-${randomUUID()}`,
+    questId: quest.id,
+    status: "offer",
+    createdAt: now,
+    expiresAt: now + 300_000,
+    generationStatus: "pending",
+    generationStartedAt: now,
+    participants: users.map((user) => ({ userId: user.id })),
+  };
+  const owned = (user: User) =>
+    state.devices
+      .filter((device) => device.ownerId === user.id)
+      .map((d) => d.id);
+  const deviceIds = users.flatMap(owned);
+  state.encounters.push({
+    id: session.encounterId,
+    pairKey: [...deviceIds].sort().join(":") || `friends:${userId}`,
+    deviceIds,
+    userIds: users.map((user) => user.id),
+    detectedAt: now,
+  });
+  state.quests.push(quest);
+  state.sessions.push(session);
+  for (const user of users) {
+    user.availableUntil = undefined;
+    user.dismissedSessionId = undefined;
+  }
+  return { session, created: true };
+}
 export function sessionAction(
   state: State,
   userId: string,
@@ -321,6 +386,8 @@ export function sessionAction(
     const validPhoto = (person: typeof participant) =>
       person.photo?.validation?.status === "approved" &&
       (getUser(state, person.userId).demoRoom ||
+        // Players get a labelled simulated check until a Meta key is set.
+        getUser(state, person.userId).providerKey.startsWith("player:") ||
         person.photo.validation.provider === "meta");
     if (!validPhoto(participant))
       throw new AppError(

@@ -53,7 +53,9 @@ function SavedPhoto({
           <Check size={12} />{" "}
           {person.photo.validation?.status === "approved"
             ? person.photo.validation.provider === "demo"
-              ? "Demo approval"
+              ? session.quest.source === "demo"
+                ? "Demo approval"
+                : "Simulated check"
               : "Photo checked"
             : "Photo saved"}
         </span>
@@ -152,8 +154,10 @@ export function AchievementUpload({
       </span>
       <p>
         Each person uploads their own photo showing the requirements below.
-        Faces are optional. Meta AI checks the visible evidence before you
-        confirm.
+        Faces are optional.{" "}
+        {data.photoCheck === "simulated"
+          ? "Photo checks are simulated until a Meta AI key is added to .env."
+          : "Meta AI checks the visible evidence before you confirm."}
       </p>
       <ul className="photo-criteria">
         {photoCriteria(session.quest).map((criterion) => (
@@ -165,7 +169,9 @@ export function AchievementUpload({
           <strong>
             {validation.status === "approved"
               ? validation.provider === "demo"
-                ? "Approved in demo simulation"
+                ? data.demo
+                  ? "Approved in demo simulation"
+                  : "Approved by simulated check (no Meta AI key)"
                 : "Photo check passed"
               : validation.status === "rejected"
                 ? "Try a clearer photo"
@@ -315,7 +321,9 @@ export function AchievementUpload({
           ? "Your photo is locked after your confirmation."
           : data.demo && validation?.provider !== "meta"
             ? "Visible only in this demo room. AI checking is simulated."
-            : "Visible to your quest partner. Sent to Meta AI for checking."}
+            : data.photoCheck === "simulated"
+              ? "Visible to your quest partner. Not sent anywhere: checking is simulated."
+              : "Visible to your quest partner. Sent to Meta AI for checking."}
       </small>
       {data.demo && (
         <small>

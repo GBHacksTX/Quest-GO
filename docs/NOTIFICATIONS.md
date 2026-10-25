@@ -52,3 +52,7 @@ October 25, 2026: the direct Tiger Data connection (port 32206) was blocked by t
 Page sound is on by default and remembered per browser (`localStorage`). Browsers only let a page start audio after a user gesture, so the two-note Web Audio chime unlocks at the first click, tap or key press anywhere on `/explore`; no dedicated button is needed. Where the browser allows autoplay for the site (Brave: site settings, Autoplay: Allow), it starts on load. Incoming push messages notify one visible browser tab, which plays the chime. **Play test sound** plays it on demand, and **Mute page sound** turns it off until **Turn on page sound** is clicked, including after reloads.
 
 Background notifications explicitly use `silent: false`. This permits the normal system sound but cannot force it, override mute/Do Not Disturb, or select a custom closed-tab sound. Actual speaker output and background delivery remain device-dependent. Sound controls can be tested independently of database delivery.
+
+## Two-player quests
+
+The worker's smoothed `pair_state` (with `announced_at`, the time the status last changed) also drives the two-player home screen: the website shows "Ramu is near you" and enables **Start a quest** only while the pair is announced as near and the worker polled within 60 seconds. The near popup reads "… are near each other. Open QuestGo to start a quest!" and a push to an open page refreshes it immediately. `npm run dev:all` runs the website and this worker together. See [PLAYERS.md](PLAYERS.md).

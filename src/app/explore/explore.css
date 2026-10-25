@@ -2528,3 +2528,145 @@
     align-items: flex-start;
   }
 }
+
+/* Two-player mode: sign-in, switching and the "friend is near" update. */
+.player-sign-in {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 8px;
+}
+.player-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.player-choice {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-line);
+  border-radius: 8px;
+  background: #fdfcf7;
+  color: var(--app-ink);
+  text-align: left;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.player-choice:hover:not(:disabled) {
+  border-color: #9fb294;
+  transform: translateY(-1px);
+}
+.player-choice > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.player-choice strong {
+  font-size: 14px;
+}
+.player-choice small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--app-muted);
+}
+.player-sign-in form {
+  display: grid;
+  gap: 12px;
+}
+.other-sign-in {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--app-muted);
+}
+.other-sign-in > summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.switch-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--app-line);
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: #fdfcf7;
+  color: var(--app-green);
+  font-size: 11px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.switch-player:hover:not(:disabled) {
+  border-color: #9fb294;
+}
+.sidebar-switch {
+  border-top: 0;
+  padding-bottom: 6px;
+}
+.near-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 15px 18px;
+  border-radius: 8px;
+  background: #e3ecd8;
+  border: 1px solid #bcd0ad;
+  color: #2b4a33;
+  font-size: 13px;
+  line-height: 1.6;
+  animation: near-arrive 0.4s ease-out;
+}
+.near-banner > svg {
+  flex-shrink: 0;
+  color: var(--app-gold);
+}
+.near-banner button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: none;
+  color: var(--app-green);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.near-banner button:first-of-type {
+  margin-left: auto;
+  background: var(--app-green);
+  color: #f7f6ef;
+  padding: 8px 13px;
+  border-radius: 999px;
+}
+.near-banner button[aria-label="Dismiss"] {
+  font-size: 18px;
+  font-weight: 400;
+}
+.friend-panel.is-near {
+  box-shadow: 0 0 0 3px #d6b96755;
+}
+.switch-hint {
+  margin: 4px 0 12px;
+  text-align: left;
+}
+@keyframes near-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@media (max-width: 760px) {
+  .switch-player {
+    padding: 6px 10px;
+  }
+  .near-banner {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .near-banner {
+    animation: none;
+  }
+}

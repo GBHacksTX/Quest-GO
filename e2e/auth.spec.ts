@@ -8,6 +8,7 @@ test("create an account, save its recovery code, sign out and restore the same a
 }) => {
   const email = `ui-${randomUUID()}@example.com`;
   await page.goto("/explore");
+  await page.getByText(/Other ways in/).click();
   await expect(page.getByText("Continue with Google")).toHaveCount(0);
   await expect(page.getByText("Continue with Facebook")).toHaveCount(0);
   await page
@@ -35,6 +36,7 @@ test("create an account, save its recovery code, sign out and restore the same a
     .getByRole("button", { name: "Sign out", exact: true })
     .first()
     .click();
+  await page.getByText(/Other ways in/).click();
   await expect(
     page.getByRole("button", { name: "Sign in to QuestGo" }),
   ).toBeVisible();
@@ -233,6 +235,7 @@ test("phone users can open ordinary sign-in and password recovery", async ({
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/explore");
+  await page.getByText(/Other ways in/).click();
   await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Forgot your password?" }).click();
   await expect(

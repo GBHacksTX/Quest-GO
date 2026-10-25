@@ -156,6 +156,9 @@ async function save(query: Query, state: State) {
         (person) =>
           person.photo?.validation?.status === "approved" &&
           (state.users.find((user) => user.id === person.userId)?.demoRoom ||
+            state.users
+              .find((user) => user.id === person.userId)
+              ?.providerKey.startsWith("player:") ||
             person.photo.validation.provider === "meta"),
       )
     ) {

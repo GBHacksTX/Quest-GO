@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AppError, attachAchievementPhoto, view } from "./domain";
-import { metaModel, MuseError } from "../../shared/meta-ai";
+import { metaConfigured, metaModel, MuseError } from "../../shared/meta-ai";
 import { validateQuest } from "../../shared/quest-ai";
 import { photoCriteria } from "./photo-criteria";
 import type { PhotoValidation, State } from "./model";
@@ -125,7 +125,10 @@ async function finishCheck(
       checkedAt: Date.now(),
       status: result.completed ? "approved" : "rejected",
       confidence: result.confidence,
-      reasoning: result.reasoning,
+      reasoning:
+        task.pending.provider === "demo" && !demo
+          ? "Simulated check: no Meta AI key is set, so this photo was not checked by AI."
+          : result.reasoning,
       criteria: result.criteria,
     };
   } catch (error) {
@@ -176,7 +179,7 @@ export async function storeAchievementPhoto(
         "SELECT COALESCE(MAX(revision),0) AS last FROM questgo_photo_submissions WHERE session_id=$1 AND user_id=$2",
         [sessionId, userId],
       );
-      const pending = pendingValidation(demo && !useMeta);
+      const pending = pendingValidation(!useMeta);
       const photo = {
         id: randomUUID(),
         uploadedAt: Date.now(),
@@ -254,7 +257,10 @@ export async function retryPhotoValidation(
           409,
         );
       const quest = state.quests.find((q) => q.id === session.questId)!;
-      const pending = pendingValidation(demo && previous?.provider === "demo");
+      // A simulated check is retried as Meta once a key is configured.
+      const pending = pendingValidation(
+        previous?.provider === "demo" && (demo || !metaConfigured()),
+      );
       person.photo.validation = pending;
       await appendValidation(query, photoId, pending);
       return {

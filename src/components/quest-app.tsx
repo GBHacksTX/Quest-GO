@@ -15,6 +15,7 @@ import {
   LogOut,
   MapPin,
   Radio,
+  Repeat2,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -27,9 +28,26 @@ import { NotificationSettings } from "./notification-settings";
 import { ProfileForm } from "./profile-form";
 import { SessionPanel } from "./session-panel";
 import { AchievementGallery } from "./achievement-photos";
+import { FriendPanel } from "./friend-panel";
+import { PlayerSignIn } from "./player-sign-in";
 
 type Tab = "home" | "history" | "device" | "preferences";
-type Config = { passwordAccounts: boolean; demoEnabled: boolean };
+type Config = {
+  passwordAccounts: boolean;
+  demoEnabled: boolean;
+  players?: boolean;
+};
+// Photo and retry responses don't carry the two-player details; keep the last ones.
+function keepFriend(previous: AppView | null, next: AppView): AppView {
+  if (next.friend || !previous?.friend || previous.user.id !== next.user.id)
+    return next;
+  return {
+    ...next,
+    player: previous.player,
+    friend: previous.friend,
+    photoCheck: previous.photoCheck,
+  };
+}
 export function QuestApp() {
   const epoch = useRef(0);
   const [data, setData] = useState<AppView | null>(null);
@@ -43,6 +61,8 @@ export function QuestApp() {
   const [connected, setConnected] = useState(true);
   const [tab, setTab] = useState<Tab>("home");
   const [code, setCode] = useState("");
+  // The "friend is near" banner stays until dismissed for that near period.
+  const [dismissedNear, setDismissedNear] = useState<string>();
   const refresh = useCallback(async () => {
     const started = epoch.current;
     try {
@@ -52,7 +72,7 @@ export function QuestApp() {
       else if (response.ok) {
         const result = await response.json();
         if (epoch.current === started) {
-          setData(result);
+          setData((previous) => keepFriend(previous, result));
           setConnected(true);
         }
       } else setConnected(false);
@@ -80,6 +100,44 @@ export function QuestApp() {
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
+  // A push from the board watcher refreshes the page at once instead of
+  // waiting for the next poll.
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.data?.type === "questgo-proximity") void refresh();
+    };
+    navigator.serviceWorker?.addEventListener?.("message", receive);
+    return () =>
+      navigator.serviceWorker?.removeEventListener?.("message", receive);
+  }, [refresh]);
+  async function switchPlayer() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "switch" }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Couldn’t switch players.");
+      epoch.current++;
+      setTab("home");
+      await refresh();
+    } catch (caught) {
+      setError(
+        caught instanceof TypeError
+          ? "Couldn’t reach QuestGo. Try switching again."
+          : caught instanceof Error
+            ? caught.message
+            : "Couldn’t switch players.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function perform(command: Record<string, unknown>) {
     if (busy) return;
     epoch.current++;
@@ -105,7 +163,7 @@ export function QuestApp() {
         throw new Error(
           result.error || "That action wasn't saved. Please try again.",
         );
-      setData(result);
+      setData((previous) => keepFriend(previous, result));
       setConnected(true);
     } catch (caught) {
       if (caught instanceof TypeError) setConnected(false);
@@ -218,7 +276,22 @@ export function QuestApp() {
                 {error}
               </div>
             )}
-            <AccountForm enabled={config.passwordAccounts} />
+            {config.players && (
+              <PlayerSignIn
+                onSignedIn={() => {
+                  setTab("home");
+                  void refresh();
+                }}
+              />
+            )}
+            {config.players ? (
+              <details className="other-sign-in">
+                <summary>Other ways in: email account or sample demo</summary>
+                <AccountForm enabled={config.passwordAccounts} />
+              </details>
+            ) : (
+              <AccountForm enabled={config.passwordAccounts} />
+            )}
             {config.demoEnabled && (
               <>
                 <div className="entry-divider">
@@ -251,6 +324,15 @@ export function QuestApp() {
       </main>
     );
   const session = data.session;
+  const nearKey = data.friend?.near
+    ? `${data.user.id}:${data.friend.since ?? 0}`
+    : undefined;
+  const nearAlert =
+    nearKey &&
+    nearKey !== dismissedNear &&
+    !(session && ["offer", "active"].includes(session.status))
+      ? data.friend!.name
+      : "";
   const isOnboarding = !data.user.onboarded;
   const showSession = tab === "home" && !!session;
   const title = isOnboarding
@@ -267,7 +349,9 @@ export function QuestApp() {
               : session.status === "active"
                 ? "Go make a memory."
                 : "Another page in your story."
-            : "Make room for a little wonder.";
+            : data.friend?.near
+              ? `${data.friend.name} is close by.`
+              : "Make room for a little wonder.";
   return (
     <div className="explore-app">
       <aside className="app-sidebar">
@@ -305,6 +389,15 @@ export function QuestApp() {
           </p>
           <small>GOOD STORIES START OUTSIDE.</small>
         </div>
+        {data.friend && (
+          <button
+            className="sidebar-logout sidebar-switch"
+            disabled={busy}
+            onClick={() => void switchPlayer()}
+          >
+            <Repeat2 size={16} /> Switch to {data.friend.name}
+          </button>
+        )}
         <button
           className="sidebar-logout"
           disabled={busy}
@@ -323,6 +416,17 @@ export function QuestApp() {
               <MapPin size={13} />{" "}
               {data.user.preferences.area || "Your neighborhood"}
             </span>
+            {data.friend && (
+              <button
+                className="switch-player"
+                disabled={busy}
+                onClick={() => void switchPlayer()}
+                title={`You are ${data.user.displayName}. Switch to ${data.friend.name}.`}
+              >
+                <Repeat2 size={14} /> {data.user.displayName}
+                <span aria-hidden="true">→</span> {data.friend.name}
+              </button>
+            )}
             <details className="account-menu">
               <summary className="avatar small" aria-label="Account menu">
                 {data.user.displayName[0].toUpperCase()}
@@ -392,6 +496,30 @@ export function QuestApp() {
               ✳
             </span>
           </div>
+          {nearAlert && (
+            <div className="near-banner" role="alert">
+              <Sparkles size={18} />
+              <span>
+                <strong>{nearAlert} is near you!</strong> You can do a quest
+                together now.
+              </span>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  setTab("home");
+                  void perform({ action: "friendQuest" });
+                }}
+              >
+                Start a quest <ArrowRight size={13} />
+              </button>
+              <button
+                aria-label="Dismiss"
+                onClick={() => setDismissedNear(nearKey)}
+              >
+                ×
+              </button>
+            </div>
+          )}
           {!connected && (
             <div className="connection-banner" role="status">
               <WifiOff size={17} />
@@ -460,8 +588,13 @@ export function QuestApp() {
               perform={perform}
               onUpdated={(next) => {
                 epoch.current++;
-                setData(next);
+                setData((previous) => keepFriend(previous, next));
               }}
+              switchPlayer={
+                data.friend
+                  ? { name: data.friend.name, run: () => void switchPlayer() }
+                  : undefined
+              }
             />
           ) : tab === "device" ? (
             <div className="setup-grid">
@@ -505,11 +638,13 @@ export function QuestApp() {
                       </span>
                     </div>
                     <p className="field-note">
-                      {data.demo
-                        ? "Sample hardware signal. No physical device is being detected."
-                        : data.devices[0].lastSeen
-                          ? `Last device report: ${new Date(data.devices[0].lastSeen).toLocaleString()}. A linked device is not necessarily online.`
-                          : "No device report received yet. Check its Wi-Fi connection."}
+                      {data.player
+                        ? `ESP board ${data.devices[0].id.replace("esp-", "#")} is linked through your username “${data.player.code}”, which is its pairing code. Its reports reach QuestGo through the ESP server.`
+                        : data.demo
+                          ? "Sample hardware signal. No physical device is being detected."
+                          : data.devices[0].lastSeen
+                            ? `Last device report: ${new Date(data.devices[0].lastSeen).toLocaleString()}. A linked device is not necessarily online.`
+                            : "No device report received yet. Check its Wi-Fi connection."}
                     </p>
                     <button
                       className="app-button primary"
@@ -650,100 +785,111 @@ export function QuestApp() {
             </section>
           ) : (
             <div className="home-grid">
-              <section className="discovery-panel">
-                <div className="discovery-top">
-                  <span className="section-kicker">
-                    THE WORLD IS BETTER, TOGETHER
-                  </span>
-                  <span
-                    className={`availability-pill ${available ? "is-available" : ""}`}
-                  >
-                    <span />{" "}
-                    {available ? "Available for a quest" : "Taking a breather"}
-                  </span>
-                </div>
-                <h2>
-                  {available ? (
-                    <>
-                      Your next story
-                      <br />
-                      is <em>a hello away.</em>
-                    </>
-                  ) : (
-                    <>
-                      A little connection.
-                      <br />
-                      <em>A new possibility.</em>
-                    </>
-                  )}
-                </h2>
-                <p>
-                  {available
-                    ? "Keep QuestGo open. When another available person’s device crosses paths with yours, a shared quest will appear here."
-                    : "Choose when you’re ready to meet someone and do something a little different."}
-                </p>
-                <div
-                  className={`discovery-radar ${available ? "is-available" : ""}`}
-                  aria-hidden="true"
-                >
-                  <div className="radar-ring ring-one" />
-                  <div className="radar-ring ring-two" />
-                  <div className="radar-ring ring-three" />
-                  <div className="radar-axis" />
-                  <span className="radar-star radar-star-a">✧</span>
-                  <span className="radar-star radar-star-b">✦</span>
-                  <span className="radar-center">
-                    <Compass size={45} strokeWidth={1} />
-                  </span>
-                  <span className="radar-you">YOU ARE HERE</span>
-                  <span className="radar-leaf">
-                    <Leaf size={21} />
-                  </span>
-                </div>
-                <div className="discovery-action">
-                  {!data.devices.length ? (
-                    <button
-                      className="app-button cream"
-                      onClick={() => navigate("device")}
+              {data.friend ? (
+                <FriendPanel
+                  data={data}
+                  busy={busy}
+                  connected={connected}
+                  start={() => void perform({ action: "friendQuest" })}
+                />
+              ) : (
+                <section className="discovery-panel">
+                  <div className="discovery-top">
+                    <span className="section-kicker">
+                      THE WORLD IS BETTER, TOGETHER
+                    </span>
+                    <span
+                      className={`availability-pill ${available ? "is-available" : ""}`}
                     >
-                      Connect your device <ArrowRight size={17} />
-                    </button>
-                  ) : (
-                    <button
-                      className={`app-button ${available ? "glass" : "cream"}`}
-                      disabled={busy || !connected}
-                      onClick={() =>
-                        void perform({
-                          action: "availability",
-                          available: !available,
-                        })
-                      }
-                    >
+                      <span />{" "}
                       {available
-                        ? "Pause availability"
-                        : "I’m open to a little adventure"}
-                      {available ? (
-                        <Unplug size={16} />
-                      ) : (
-                        <ArrowRight size={17} />
-                      )}
+                        ? "Available for a quest"
+                        : "Taking a breather"}
+                    </span>
+                  </div>
+                  <h2>
+                    {available ? (
+                      <>
+                        Your next story
+                        <br />
+                        is <em>a hello away.</em>
+                      </>
+                    ) : (
+                      <>
+                        A little connection.
+                        <br />
+                        <em>A new possibility.</em>
+                      </>
+                    )}
+                  </h2>
+                  <p>
+                    {available
+                      ? "Keep QuestGo open. When another available person’s device crosses paths with yours, a shared quest will appear here."
+                      : "Choose when you’re ready to meet someone and do something a little different."}
+                  </p>
+                  <div
+                    className={`discovery-radar ${available ? "is-available" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <div className="radar-ring ring-one" />
+                    <div className="radar-ring ring-two" />
+                    <div className="radar-ring ring-three" />
+                    <div className="radar-axis" />
+                    <span className="radar-star radar-star-a">✧</span>
+                    <span className="radar-star radar-star-b">✦</span>
+                    <span className="radar-center">
+                      <Compass size={45} strokeWidth={1} />
+                    </span>
+                    <span className="radar-you">YOU ARE HERE</span>
+                    <span className="radar-leaf">
+                      <Leaf size={21} />
+                    </span>
+                  </div>
+                  <div className="discovery-action">
+                    {!data.devices.length ? (
+                      <button
+                        className="app-button cream"
+                        onClick={() => navigate("device")}
+                      >
+                        Connect your device <ArrowRight size={17} />
+                      </button>
+                    ) : (
+                      <button
+                        className={`app-button ${available ? "glass" : "cream"}`}
+                        disabled={busy || !connected}
+                        onClick={() =>
+                          void perform({
+                            action: "availability",
+                            available: !available,
+                          })
+                        }
+                      >
+                        {available
+                          ? "Pause availability"
+                          : "I’m open to a little adventure"}
+                        {available ? (
+                          <Unplug size={16} />
+                        ) : (
+                          <ArrowRight size={17} />
+                        )}
+                      </button>
+                    )}
+                    <small>
+                      <ShieldCheck size={13} /> Every quest needs a shared yes.
+                    </small>
+                  </div>
+                  {data.demo && available && (
+                    <button
+                      className="demo-encounter-button"
+                      disabled={busy}
+                      onClick={() => void perform({ action: "demoEncounter" })}
+                    >
+                      <Sparkles size={15} /> Simulate a nearby encounter{" "}
+                      <ArrowDownRight size={16} />
                     </button>
                   )}
-                  <small>
-                    <ShieldCheck size={13} /> Every quest needs a shared yes.
-                  </small>
-                </div>
-                {data.demo && available && (
-                  <button
-                    className="demo-encounter-button"
-                    disabled={busy}
-                    onClick={() => void perform({ action: "demoEncounter" })}
-                  >
-                    <Sparkles size={15} /> Simulate a nearby encounter{" "}
-                    <ArrowDownRight size={16} />
-                  </button>
-                )}
-              </section>
+                </section>
+              )}
               <aside className="home-aside">
                 <section className="panel readiness-panel">
                   <span className="section-kicker">A LITTLE CHECK-IN</span>
@@ -804,23 +950,53 @@ export function QuestApp() {
                       <ChevronRight size={16} />
                     </button>
                   </div>
-                  <div className="readiness-row">
-                    <span className={available ? "ready-check" : "not-ready"}>
-                      {available ? <Check size={14} /> : <Wifi size={14} />}
-                    </span>
-                    <div>
-                      <strong>
-                        {available
-                          ? "Open to a hello"
-                          : "You’re currently paused"}
-                      </strong>
-                      <small>
-                        {available
-                          ? "Keep this website open while waiting"
-                          : "Become available when it suits you"}
-                      </small>
+                  {data.friend ? (
+                    <div className="readiness-row">
+                      <span
+                        className={
+                          data.friend.near ? "ready-check" : "not-ready"
+                        }
+                      >
+                        {data.friend.near ? (
+                          <Check size={14} />
+                        ) : data.friend.watcherOnline ? (
+                          <Wifi size={14} />
+                        ) : (
+                          <WifiOff size={14} />
+                        )}
+                      </span>
+                      <div>
+                        <strong>
+                          {data.friend.near
+                            ? `${data.friend.name} is near`
+                            : `${data.friend.name} isn’t nearby`}
+                        </strong>
+                        <small>
+                          {data.friend.watcherOnline
+                            ? "Board events are coming in"
+                            : "Board watcher offline"}
+                        </small>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="readiness-row">
+                      <span className={available ? "ready-check" : "not-ready"}>
+                        {available ? <Check size={14} /> : <Wifi size={14} />}
+                      </span>
+                      <div>
+                        <strong>
+                          {available
+                            ? "Open to a hello"
+                            : "You’re currently paused"}
+                        </strong>
+                        <small>
+                          {available
+                            ? "Keep this website open while waiting"
+                            : "Become available when it suits you"}
+                        </small>
+                      </div>
+                    </div>
+                  )}
                 </section>
                 <section className="panel story-stats">
                   <div>

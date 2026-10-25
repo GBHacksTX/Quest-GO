@@ -78,11 +78,52 @@ async function coordinates(preferences: Preferences, fetcher: typeof fetch) {
   globals.questgoGeoQueue = pending.catch(() => {});
   return pending;
 }
+// Without a verified venue, Meta AI can still write a free, venue-free quest.
+async function metaQuest(
+  preferences: Preferences,
+  fetcher: typeof fetch,
+): Promise<Quest | undefined> {
+  if (!metaConfigured()) return undefined;
+  try {
+    const minutes = Math.min(
+      preferences.minutes,
+      preferences.mode === "work" ? 15 : 30,
+    );
+    const generated = generatedSchema.parse(
+      await generateQuest(
+        "No verified venue is available. Use only free public places described generically (a bench, a courtyard, a street corner). Keep it easy to photograph, faces optional. Each participant will submit their own photo showing the same criteria. Do not require a purchase.",
+        {
+          ...preferences,
+          budget: 0,
+          interests: INTERESTS.filter((i) => preferences.interests.includes(i)),
+          minutes,
+        },
+        [],
+        { fetcher },
+      ),
+    );
+    if (generated.minutes > minutes) return undefined;
+    return {
+      id: randomUUID(),
+      ...generated,
+      costEstimate: 0,
+      budgetLimit: preferences.budget,
+      mode: preferences.mode,
+      source: "ai",
+      sourceText:
+        "Written by Meta AI. Nearby venue suggestions were unavailable, so this quest uses free public places.",
+    };
+  } catch {
+    return undefined;
+  }
+}
 export async function createNearbyQuest(
   preferences: Preferences,
   fetcher: typeof fetch = fetch,
 ): Promise<Quest> {
-  const fallback = fallbackQuest(preferences.mode, preferences.minutes);
+  const fallback = async () =>
+    (await metaQuest(preferences, fetcher)) ??
+    fallbackQuest(preferences.mode, preferences.minutes);
   try {
     const point = await coordinates(preferences, fetcher);
     const radius = Math.min(1200, preferences.minutes * 25);
@@ -108,7 +149,7 @@ export async function createNearbyQuest(
         cache: "no-store",
       },
     );
-    if (!response.ok) return fallback;
+    if (!response.ok) return fallback();
     const candidates = resultSchema
       .parse(await response.json())
       .elements.filter(
@@ -130,7 +171,7 @@ export async function createNearbyQuest(
       return score(a) - score(b);
     });
     const place = candidates[0];
-    if (!place) return fallback;
+    if (!place) return fallback();
     const tags = place.tags!;
     const loc = coordinate.parse(
       place.center || { lat: place.lat, lon: place.lon },
@@ -204,6 +245,6 @@ export async function createNearbyQuest(
     }
     return quest;
   } catch {
-    return fallback;
+    return fallback();
   }
 }

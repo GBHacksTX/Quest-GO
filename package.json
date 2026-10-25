@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "dev:all": "tsx scripts/dev-all.ts",
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",

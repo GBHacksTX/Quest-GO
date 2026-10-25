@@ -42,7 +42,7 @@ export function eventNotification(event: ProximityEvent) {
   const me = (event.detected_by || `Device ${event.device_id}`).slice(0, 40);
   const peer = (event.other_person || `Device ${event.peer_id}`).slice(0, 40);
   const messages: Record<string, string> = {
-    peer_near: `${me} and ${peer} are near each other`,
+    peer_near: `${me} and ${peer} are near each other. Open QuestGo to start a quest!`,
     peer_far: `${me} and ${peer} moved apart`,
     peer_detected: `${me} detected ${peer}`,
     peer_missing: `${me} and ${peer} are out of range`,
