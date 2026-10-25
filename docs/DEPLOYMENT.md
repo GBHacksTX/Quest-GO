@@ -11,7 +11,7 @@ Serve the app behind HTTPS and set `AUTH_URL` to the actual public origin, such 
 - Google: `/api/auth/callback/google`
 - Facebook: `/api/auth/callback/facebook`
 
-Set `DATABASE_URL`, a stable `AUTH_SECRET`, both provider IDs/secrets and optionally `GEMINI_API_KEY`/`GEMINI_MODEL` in the host's secret environment. Never bake `.env` or credentials into a build. Demo cookies default to secure transport in production. For an explicit local HTTP production test, use `AUTH_URL=http://localhost:<port>`.
+Set `DATABASE_URL`, a stable `AUTH_SECRET`, both provider IDs/secrets and `META_AI_API_KEY` (optional model override: `META_AI_MODEL`) in the host's secret environment. Never bake `.env` or credentials into a build. Demo cookies default to secure transport in production. For an explicit local HTTP production test, use `AUTH_URL=http://localhost:<port>`.
 
 Set `QUESTGO_DEMO_ENABLED=false` for a live-only deployment; leave it enabled for an explicitly labeled public demo. The current repository intentionally favors a single application instance, with a serialized small-dataset transaction path and in-process request/geocoding limits. Do not claim multi-instance production readiness.
 
@@ -29,6 +29,6 @@ Provide an HTTPS public origin for hosted use. The local HTTP production excepti
 
 ## Hosted check
 
-Check `/api/health`: `ready` means the configured database can be read; `demo` means only the demo storage mode is available; `unconfigured`/`unavailable` returns 503. This does not prove the OAuth providers, Gemini or physical devices work.
+Check `/api/health`: `ready` means the configured database can be read; `demo` means only the demo storage mode is available; `unconfigured`/`unavailable` returns 503. This does not prove the OAuth providers, Meta AI or physical devices work.
 
-After deployment, sign in through each real provider, provision and link two devices, observe recent heartbeats, opt in from two phones, and trigger a real encounter. Verify one shared quest, both acceptances, both confirmations and one history/streak update. Test venue lookup and its fallback under the hosted network conditions. Record which checks actually passed.
+After deployment, sign in through each real provider, provision and link two devices, observe recent heartbeats, opt in from two phones, and trigger a real encounter. Verify one shared quest, both acceptances, both approved photos, both confirmations and one history/streak update. Test venue lookup and its fallback under the hosted network conditions. Record which checks actually passed.

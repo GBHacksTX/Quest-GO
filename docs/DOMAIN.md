@@ -396,7 +396,7 @@ Participant B: complete
 QuestSession: completed
 ```
 
-Future verification methods could include additional signals, but they are not required by the current domain model.
+Each participant must also have an approved photo before confirming. The session needs both approved photos and both confirmations. Additional signals remain outside the current implementation.
 
 ---
 

@@ -20,7 +20,7 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 
 **Work:** Define users, devices, encounters, quests, shared sessions and participant progress. Add a versioned SQL migration and PostgreSQL read/write transactions. Use a separate local SQLite database only for the explicit demo.
 
-**Status:** Implemented and tested against SQLite and a disposable PostgreSQL 17 instance. Real Tiger Data connection verification awaits `DATABASE_URL`. See [DATABASE.md](DATABASE.md).
+**Status:** Implemented and tested against SQLite and a disposable PostgreSQL 17 instance. A connection string is configured; the remote connection currently times out. See [DATABASE.md](DATABASE.md).
 
 ## 3. Add sign-in and user identity
 
@@ -70,13 +70,13 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 
 **Status:** Implemented and verified through domain, database, API and browser checks.
 
-## 9. Add preferences, real places and Gemini
+## 9. Add preferences, real places and Meta AI
 
 **Branches:** `feat/application-experience`, `feat/hardware-and-venues`.
 
-**Work:** Normal/Work mode, interests, time, spending limit, browser location/manual area, real venue data and optional Gemini activity text. Use the lower time/budget; Work mode takes priority. Display source/directions links and unknown prices honestly. Allow a free fallback and retry before acceptance.
+**Work:** Normal/Work mode, interests, time, spending limit, browser location/manual area, real venue data and optional Meta AI activity text. Use the lower time/budget; Work mode takes priority. Display source/directions links and unknown prices honestly. Allow a free fallback and retry before acceptance.
 
-**Status:** Implemented; fixtures cover trusted venue identities, unknown prices, zero-spend filtering, malformed AI output and provider failure. Live public venue lookup timed out during verification. Real Gemini generation still needs a key/model. Payments and bookings happen outside QuestGo.
+**Status:** Implemented; fixtures cover trusted venue identities, unknown prices, zero-spend filtering, malformed AI output and provider failure. Live public venue lookup timed out during verification. Meta AI key/model access and real image judging are now verified; see the validated-achievement integration below. Payments and bookings happen outside QuestGo.
 
 ## 10. Add history and streaks
 
@@ -104,9 +104,9 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 
 ## What remains external
 
-- Tiger Data connection string and a verified hosted database connection.
-- Google and Facebook application credentials and successful real callback flows.
-- Gemini key and a successful real generation with the selected model.
+- Resolve the configured Tiger Data connection timeout and verify the hosted database.
+- Add missing Facebook credentials and verify both real OAuth callback flows.
+- Verify real quest generation with live venue data; Meta model access and image judging already pass.
 - Reliable access to the selected public venue endpoints or a suitable replacement service.
 - Teammate-owned firmware, two physical ESP32s, and an actual proximity demonstration.
 - NorthMark target access, HTTPS and a hosted end-to-end check.
@@ -124,3 +124,17 @@ Complete independent implementation and testing while these are unavailable. Rep
 ## Validated achievement integration
 
 Branch: `feat/validated-achievements`. Reuse Arjit Magar's `7ebab80` validator and retain his original branch unchanged. Integrate in separate commits for additive database storage, shared Meta validation, completion/UI wiring, and tests/documentation. Use the isolated `questgo_app` PostgreSQL schema and append-only evidence/validation/achievement tables; never replace the user's existing datasets. API keys stay in ignored local configuration.
+
+
+Implementation status: complete locally. The shared judge is connected to immutable photo submissions, saved criterion snapshots, retryable validation events, approval-gated confirmations and one achievement evidence record per completed session. Existing UTC streak rules remain in use. README explains the idea, decisions, journey, setup, data preservation and remaining external checks.
+
+Verification: 17 automated tests; production build and main-app TypeScript; standalone lab route-type generation and TypeScript; disposable PostgreSQL with a pre-existing public table; six desktop/mobile/API scenarios, including real Meta rejection. Nothing has been pushed. The remote database timeout, missing Facebook configuration, actual firmware/venue retrieval and hosted verification remain external handoff work.
+
+Focused feature commits:
+- `c9fba80`: reuse Arjit Magar’s photo-validation integration (cherry-pick of `7ebab80`).
+- `fffdc99`: `feat(db): isolate app data and add evidence history tables`.
+- `c682dd2`: `feat(ai): share Arjit’s photo judge with Meta integration`.
+- `dcdfbb7`: `feat(achievements): gate completion on validated photo evidence`.
+- `ed3e627`: `test(achievements): verify live rejection in the desktop journey`.
+
+Integration uses a separate `integration/validated-achievements` copy, rebased onto local `main` and squash-merged there. The feature branch and Arjit’s original branch are preserved. Implementation uses a separate worktree (listed by `git worktree list`); the original worktree’s uncommitted architecture edit is untouched.

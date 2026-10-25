@@ -257,7 +257,7 @@ The complete application is at `/explore`. A Node production build and local pro
 
 ## Achievement photos
 
-Each participant uploads their own photo through an authenticated, same-origin multipart endpoint. Sharp validates and re-encodes the image, corrects orientation and removes metadata. Versioned migration 002 stores private JPEG bytes in PostgreSQL for live users and the separate SQLite store for demos. This feature adds no external media-storage service or credentials. Protected image routes authorize session membership on every read; public static image hosting is not used. The completed achievement displays both photos in the result and Your stories. Streak calculation still uses mutually completed sessions, now gated by both participants' photos.
+Each participant uploads their own photo through an authenticated, same-origin multipart endpoint. Sharp validates and re-encodes the image, corrects orientation and removes metadata. Migration 002 retains legacy photos; migration 003 appends new submissions, validation events and achievement evidence in the isolated PostgreSQL schema or demo SQLite store. This feature adds no external media-storage service or credentials. Protected image routes authorize session membership on every read; public static image hosting is not used. The completed achievement displays both photos in the result and Your stories. Streak calculation still uses mutually completed sessions, now gated by both participants' approved photos and confirmations.
 
 ## Shared photo judge
 

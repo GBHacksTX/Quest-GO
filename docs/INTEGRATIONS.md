@@ -1,70 +1,43 @@
 # Integration readiness
 
-Updated October 25, 2026. The complete demo runs without external credentials. Implemented integration code and externally verified connections are tracked separately.
+Updated October 25, 2026. Implementation, local verification and external verification are separate facts.
 
-| Integration | Implemented | Verification / remaining access |
+| Integration | Implemented behavior | Current verification |
 | --- | --- | --- |
-| PostgreSQL | Versioned migration, transactional repository, identity/device/session relationships. | Verified against a disposable local PostgreSQL 17 instance, including concurrent actions and database constraints. Tiger Data itself still needs `DATABASE_URL`. |
-| Google and Facebook | Auth.js JWT sessions, provider account mapping, protected API and sign-out. | Real provider callbacks require both applications' credentials and a reachable callback origin. No real OAuth sign-in is claimed verified. |
-| Nearby venues | OpenStreetMap Overpass lookup, geocoding, source links, directions, unknown-price handling and free fallback. | Fixture validation passes. Live public Overpass calls timed out in this environment; venue retrieval is not claimed externally verified. |
-| Gemini | Server-side structured activity request with bounded time, duration validation and deterministic fallback. | Malformed-output and failure checks pass. A real generation needs `GEMINI_API_KEY` and an available model. |
-| ESP32 | Per-device provisioning, private claims, authenticated heartbeat and encounter endpoints. | Sender-authentication checks pass. Teammate firmware and two physical devices still need connection and a real proximity check. |
-| Hosting | Production build and local production runtime verified; Node deployment instructions and an optional Dockerfile are included. Docker itself is not installed here. | NorthMark target access and hosted HTTPS verification are still required. |
+| PostgreSQL / Tiger Data | Versioned migrations and transactions in the isolated `questgo_app` schema; additive submission, validation and achievement tables. | Disposable PostgreSQL 17 checks pass, including preservation of a pre-existing public table. The supplied remote connection times out; it has not been modified. |
+| Google / Facebook | Auth.js sessions, provider/account identity mapping and protected APIs. | Google credentials are configured locally. Facebook credentials are empty in the checked local file. Real OAuth callbacks remain unverified. |
+| Meta AI | Arjit Magar’s shared quest generator and image judge, using authenticated chat completions and image content parts. | The configured key returned models; `muse-spark-1.3` successfully checked an image. Real upload-API rejection blocks completion. Incomplete responses and provider failures fail closed. |
+| Nearby venues | OpenStreetMap Overpass and Nominatim, real source/directions links, unknown prices and a free fallback. | Fixture checks pass. Live venue calls have timed out here; successful external retrieval is not claimed. |
+| ESP32 | Private device provisioning and claims, per-device authenticated heartbeat/encounter routes. | Software authentication and lifecycle checks pass. Teammate firmware and two physical devices still need a real encounter check. |
+| Hosting | Node production build, local runtime, deployment instructions and optional Dockerfile. | Local production runtime works. NorthMark access, HTTPS, real callback URLs and a hosted end-to-end check remain external. Docker is unavailable here. |
 
-## Environment setup
+## Credentials
 
-A local `.env` has been created for the planning handoff. Provider credentials were left blank when the template was created; `AUTH_SECRET` was generated locally. The file is ignored by Git. `.env.example` remains the shareable template and contains no secrets. The matching integrations are implemented; adding values alone does not verify that the external accounts or callbacks work.
+Edit the existing ignored `.env` directly. Do not overwrite it with a fresh template or paste credentials into chat. `.env.example` contains empty placeholders.
 
-Enter credentials directly in `.env` on this computer rather than pasting them into chat. Do not overwrite the file if it already contains values. No external credentials are needed for the complete isolated demo.
+- `DATABASE_URL`: PostgreSQL/Tiger Data connection string with the provider's required connection settings.
+- `AUTH_SECRET`: a stable, locally generated random secret.
+- `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`: Google OAuth application credentials.
+- `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET`: Facebook Login app credentials. A Meta AI API key does not replace these.
+- `META_AI_API_KEY`: server-side Meta AI key for generation and photo checking.
+- `AUTH_URL`: actual app origin. Hosted callbacks are `/api/auth/callback/google` and `/api/auth/callback/facebook` on that origin.
 
-| Variable | What belongs here | When it is needed |
-| --- | --- | --- |
-| `DATABASE_URL` | The development PostgreSQL connection string supplied by Tiger Data, including its required connection settings. | Connecting and testing real storage. |
-| `AUTH_SECRET` | A locally generated random secret used by the authentication system. Already populated locally; no provider account is needed for this value. | Implementing real login. |
-| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | The client ID and secret for the project's Google OAuth application. | Verifying Google login and its callback URLs. |
-| `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | The application ID and secret for the project's Meta/Facebook login application. | Verifying Facebook login and its callback URLs. Both login providers are required at launch. |
-| `GEMINI_API_KEY` | A server-side key for the project's Gemini access. | Verifying actual Gemini activity generation. |
+Meta defaults to `https://api.meta.ai/v1` and `muse-spark-1.3`. Optional overrides are `META_AI_BASE_URL`, `META_AI_MODEL` and `META_AI_VISION_MODEL`. Legacy `MUSE_*` provider settings remain supported for the teammate's lab. Main-app live validation **never** enables mock approval through `MUSE_MOCK`.
 
-Collect values one integration at a time after the user-flow review. Public callback URLs and hosting settings depend on the eventual deployment target; the software will document exact values when that setup is implemented. Credentials for the web server's database and AI services do not belong in ESP32 firmware.
+The [Meta API reference](https://dev.meta.ai/docs/api-reference) and [image-understanding guide](https://dev.meta.ai/docs/image-understanding) document the request format. `npx tsx scripts/check-meta.ts` sends an unrelated generated color swatch and checks that it cannot prove a shared activity. Real user photos are sent to Meta only when checking their evidence; this is disclosed in the upload interface.
 
-### Nearby venue data
+## Venue data and failure behavior
 
-The selected source is OpenStreetMap, queried through [Overpass](https://dev.overpass-api.de/overpass-doc/en/criteria/per_tag.html). It returns actual named places and coordinates; Gemini cannot replace these fields. The UI links to the source and credits OpenStreetMap contributors. Venue opening hours, availability, admission charges and menu prices are not verified; unknown prices are displayed as variable. A zero-spend preference uses outdoor activity near a park, with no paid entry required.
+[OpenStreetMap Overpass](https://dev.overpass-api.de/overpass-doc/en/criteria/per_tag.html) supplies venue identities and coordinates. AI output cannot replace those source fields. Opening hours, access and prices are not verified; the interface asks people to check and agree before spending. Zero-spend requests exclude paid venue categories.
 
-Manual area lookup uses Nominatim only on explicit saved-location requests, not autocomplete. Its [usage policy](https://operations.osmfoundation.org/policies/nominatim/) limits the public service to one request per second and requires an identifying User-Agent. This single-instance MVP serializes geocoding with at least 1.1 seconds between requests, identifies itself, and caches repeated area coordinates. Browser coordinates bypass geocoding. Use a suitable hosted service or self-hosted endpoint before increasing traffic or running replicas. `QUESTGO_GEOCODER_URL` and `QUESTGO_OVERPASS_URL` allow replacement without changing application code.
+Manual area lookup uses Nominatim with an identifying User-Agent, caching and a serialized gap of at least 1.1 seconds between requests, following its [public usage policy](https://operations.osmfoundation.org/policies/nominatim/). Browser coordinates bypass geocoding. `QUESTGO_GEOCODER_URL` and `QUESTGO_OVERPASS_URL` support replacement services. Public endpoints and in-process limits suit a small single-instance demonstration; increasing traffic needs an appropriate provider or self-hosted service.
 
-Venue lookup has a ten-second timeout; geocoding and AI have their own bounded timeouts. A pending suggestion recovers to a free fallback after 30 seconds if work is interrupted. Both users see the same saved quest; generation cannot replace it once either participant has accepted. The selected Gemini model can be overridden with `GEMINI_MODEL`. No separate Maps or Places key is needed.
+Venue lookup, generation and image judging have bounded timeouts. Venue/generation failure keeps a free, photographable quest. Image-check failure keeps the submission with an error and blocks confirmation until a retry succeeds. External requests run outside database transactions. A stale result cannot approve a replacement image.
 
-Optional settings: `AUTH_URL` is the canonical app origin; `QUESTGO_DEMO_ENABLED=false` disables demo creation and demo identity access. Keep the demo enabled for a local walkthrough. Public service endpoints and model names are configuration, not secrets.
+## Local verification
 
-### Hardware and hosting handoff
+TypeScript, the production build, 17 automated tests and six API/browser scenarios pass. Tests cover independent identities, consent, photo normalization and access, rejected/error evidence, replacement races, retries, saved history, UTC streaks and duplicate-credit prevention. A disposable PostgreSQL check also verifies the new tables and that an existing public dataset is untouched. The standalone validation lab type-checks after generating its Next.js route types.
 
-The user confirmed that a teammate supplies ESP32 firmware and the devices report over Wi-Fi. The implemented report format, private claim method and sender authentication are documented in [HARDWARE.md](HARDWARE.md); confirm the firmware uses this contract. Firmware implementation is outside the application's current ownership.
+The production app runs locally at [localhost:3101/explore](http://localhost:3101/explore). Automated screenshots are in the ignored `artifacts/` directory. No hosted deployment or remote push has been performed.
 
-NorthMark hosting access is needed for the connected hosted demo, not for reviewing the UI. Define deployment variables once the actual hosting environment is known.
-
-## Historical step 1 verification
-
-- `npm run typecheck` passed.
-- `npm run build` passed using Webpack; `/`, `/_not-found`, and `/icon.svg` prerendered successfully.
-- The local development server started on `127.0.0.1:3001`.
-- Browser navigation was denied by the browser approval gate. Desktop/mobile visual layout and live keyboard/click checks remain unverified; responsive styles and native button keyboard behavior are implemented.
-- Turbopack failed to bind its worker port in the execution environment, including on an escalated attempt. The project uses the supported `--webpack` option for development and builds.
-
-The historical browser restriction above was superseded by successful desktop/mobile Playwright checks during MVP implementation. Current validation is recorded in [DEMO.md](DEMO.md).
-
-## Final local verification — October 25, 2026
-
-- TypeScript and the optimized production build pass.
-- Eleven automated domain/integration/storage tests pass.
-- All six API/browser scenarios pass against the production server: independent identities, access protection, desktop/mobile completion and reload, passing without credit, failed-save recovery, and mobile sign-out.
-- PostgreSQL 17 migration, real persistence, concurrent transitions, foreign keys and unique participation pass on a disposable local cluster, which is stopped after the check.
-- Desktop/mobile screenshots are generated and visually inspected.
-- The local production app is available on port 3101. Automatic Chrome opening was declined by the browser origin approval gate; the user can open the provided link directly. This does not change the already completed automated test results.
-- No remote push or hosted deployment has been performed.
-
-## Photo achievements and streak verification — October 25, 2026
-
-Separate participant photo uploads, private image viewing, completed achievement galleries and the existing UTC streak system are implemented. Migration 002 stores photos in the same selected database, so this feature requires no additional service or API key. Live PostgreSQL must be migrated before updating a deployment; demo SQLite upgrades automatically.
-
-Fourteen automated domain/integration/storage tests and all six API/browser scenarios pass against the updated production runtime. Tests cover each participant's own upload, completion blocked without a photo, immutable photos after confirmation, unauthorized image access, metadata stripping, upload retry, reload recovery, two-photo history, partial completion without streak credit and repeated completion without duplicate credit. The disposable PostgreSQL check verifies photos and migration idempotence. TypeScript and the production build pass. External integration blockers listed above remain unchanged.
+See [HARDWARE.md](HARDWARE.md), [DATABASE.md](DATABASE.md), [DEPLOYMENT.md](DEPLOYMENT.md) and [DEMO.md](DEMO.md) for the handoffs and commands.

@@ -1,6 +1,6 @@
 # ESP32 handoff
 
-The firmware teammate owns proximity detection and Wi-Fi connectivity. The web application owns user identity, availability, quest creation and participant progress. ESP32s send reports to the application over HTTPS; they never connect directly to PostgreSQL or receive OAuth/Gemini credentials.
+The firmware teammate owns proximity detection and Wi-Fi connectivity. The web application owns user identity, availability, quest creation and participant progress. ESP32s send reports to the application over HTTPS; they never connect directly to PostgreSQL or receive OAuth/Meta AI credentials.
 
 ## Register each device once
 
