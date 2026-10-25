@@ -1,269 +1,52 @@
-# QuestGo Architecture
+# QuestGo architecture
 
-## 1. System Overview
+## Current shape
 
-QuestGo turns physical proximity into shared real-world activities.
-
-Core flow:
+QuestGo is a Next.js App Router application running on Node.js 22.13 or newer. React provides the phone and desktop interface; route handlers own identity, devices, encounters, shared quests and private photos. A single transactional repository keeps both participants' state consistent.
 
 ```text
-Nearby QuestGo devices
-        ↓
-Proximity encounter detected
-        ↓
-Encounter recorded
-        ↓
-QuestGo application receives encounter
-        ↓
-Shared quest created
-        ↓
-Both users receive the same quest
-        ↓
-Both accept
-        ↓
-Activity completed
-        ↓
-Both verify completion
-        ↓
-Streak / engagement updated
+Email/password → session cookie → protected application API
+ESP32 Wi-Fi report → authenticated encounter → one saved shared quest
+Both accept → activity → both approved photos → both confirm
+Completed achievement → history and UTC-day streak
 ```
 
----
+## Accounts without external providers
 
-## 2. Current Technology Stack
+Google, Facebook, OAuth routes and the Auth.js dependency are removed. Users create an email/password account directly. `src/lib/accounts.ts` handles registration, login, logout and recovery; `src/lib/identity.ts` reads the browser cookie and resolves the current account.
 
-This section represents the **current implementation**, not permanent architectural requirements.
+Passwords use Node's asynchronous scrypt with random salts (`N=32768`, `r=8`, `p=3`), following an [OWASP-listed scrypt configuration](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). The implementation uses [Node crypto](https://nodejs.org/api/crypto.html). Recovery codes and 256-bit session tokens are stored as SHA-256 hashes. Session tokens are opaque random values, not user IDs or passwords.
 
-### Frontend
-- Next.js
-- TypeScript
-- Tailwind CSS
+`questgo-session` is HTTP-only and SameSite=Lax, with Secure enabled for production HTTPS. Its seven-day server expiry is checked on each authenticated request. Logout revokes the token server-side. Password recovery rotates the one-time recovery code and revokes that account's sessions. Account actions require same-origin requests and have per-client/per-email limits. No email delivery or email verification service is configured; email is only a login identifier.
 
-Step 1 implements a Next.js App Router application in `src/app`, with strict
-TypeScript and Tailwind via PostCSS. Development and builds use the bundled
-Webpack option because Turbopack worker port binding failed in the local execution
-environment. The landing page is rendered on the server;
-only the sample quest-card reveal is a client component. Illustrations and motion
-use CSS, and typography uses system fonts. The preview has no persistence or
-external service calls. See `PRODUCT.md` for current behavior and
-`INTEGRATIONS.md` for access and verification status. The remaining stack below
-is planned and is not yet integrated.
+A signed demo cookie selects an explicitly separate sample room. Entering a demo revokes the real session first; logging in clears the demo cookie. Profiles and achievements are not merged across identities. The optional stable `AUTH_SECRET` signs demo cookies only; real sessions need no provider secret.
 
-### Authentication
-- Auth.js
-- Google OAuth
-- Meta / Facebook OAuth
+## Storage
 
-### Database
-- Tiger Data
-- PostgreSQL
+`QUESTGO_STORAGE=sqlite` is the explicit local MVP default. Node's built-in SQLite stores real accounts and activity data in `.questgo/accounts.sqlite`; the demo uses `.questgo/demo.sqlite`. `QUESTGO_DATA_DIR` selects another persistent directory. Both files upgrade through the same versioned migrations and remain separate.
 
-The MVP repository uses normalized entity identities and relationships with typed JSON payloads, through `pg` and versioned SQL migrations. A separate built-in SQLite store supports the explicitly labeled demo without live credentials. It does not replace production PostgreSQL. All domain transitions are transactional. See `DATABASE.md` for the schema and concurrency limits.
+`QUESTGO_STORAGE=postgres` deliberately selects Tiger Data/PostgreSQL through `DATABASE_URL`. Its application schema is `questgo_app`, with a search path excluding public datasets. No automatic fallback or copy occurs between backends. Existing remote datasets remain untouched. PostgreSQL deployments run `npm run db:migrate` before startup; SQLite upgrades automatically.
 
-### Cloud / Compute
-- NorthMark Compute & Cloud
+The repository loads the small application dataset inside serialized transactions. SQLite uses immediate transactions; PostgreSQL uses advisory locks. This is a small, single-instance MVP design. The in-process rate limits and public geocoding queue are not a distributed system. See [DATABASE.md](DATABASE.md) for tables, image limits and preservation rules.
 
-### AI
-- Meta AI API
+## Shared quests and real-world reports
 
-Meta AI optionally writes activity text from validated preference and place context. OpenStreetMap Overpass supplies venue identities and locations; Nominatim resolves manually entered areas. No extra places API key is required. Venue lookup and AI calls have timeouts and a deterministic free fallback. Unknown prices remain unknown, and payments/bookings stay outside QuestGo. See `INTEGRATIONS.md` for public-service limits and verification status.
+Teammate-owned ESP32 firmware sends per-device authenticated Wi-Fi heartbeat and encounter reports. Private pairing codes establish ownership separately from firmware keys. Both users must opt in with the site open, and each can have only one unresolved quest. Reversed/repeated signals are deduplicated.
 
-### Hardware
-- ESP32
+Both participants reference one persisted quest/session. The lower time and budget win; Work mode takes priority and caps the activity at 15 minutes. Offers expire after five minutes, active sessions after 24 hours, and the same device pair has a ten-minute cooldown. Acceptance, confirmation, cancellation and credit checks live in `src/lib/domain.ts`.
 
-### Integration decisions
+OpenStreetMap Overpass supplies venue identities and coordinates; Nominatim resolves manual areas. Meta AI can write a photographable activity but cannot replace source venue fields or invent prices. Lookup/generation failures preserve a labelled free fallback. Purchases and bookings happen outside QuestGo.
 
-- ESP32 firmware is supplied by a teammate and reports over Wi-Fi to authenticated Next.js hardware routes. Each provisioned device has its own firmware key and separate user pairing code. `HARDWARE.md` defines the software contract; the teammate must connect and verify the actual firmware.
-- Encounter discovery may require the website to remain open while a user is available. Background notifications are outside the MVP.
-- Real nearby venues and potentially paid activities use OpenStreetMap data, browser coordinates or manual area entry, and optional Meta AI activity text. Prices and access must be checked with venues. Provider failures are visible and fall back to a free activity.
-- Both Google and Facebook remain required login providers. See `PRODUCT.md` for the confirmed scope and proposed journey awaiting review.
+## Photos and achievements
 
-> The stack may change during development. Update this file whenever a major technology or architectural decision changes.
+Arjit Magar's generator and image judge are reused in `shared/quest-ai.ts`; `shared/meta-ai.ts` calls Meta's image-capable chat API. The standalone `validation/` lab uses the same code. Live checks ignore the lab's mock flag; demo simulations are explicitly labelled.
 
----
+Each participant submits their own JPEG, PNG or WebP, normalized by Sharp to a bounded JPEG with metadata removed. Each immutable submission snapshots the saved photo criteria; validation events are appended and tied to that exact image. Network calls run outside database transactions. Missing provider evidence and service failures cannot approve completion, and stale responses cannot approve a replacement photo.
 
-## 3. System Components
+Both approved photos and both confirmations create one achievement evidence record. Photos lock after their owner's confirmation and are served only to session participants. History drives streaks based on distinct UTC calendar days; duplicate requests cannot create extra credit.
 
-### Hardware Layer
+## Runtime and verification
 
-Responsible for detecting nearby QuestGo devices and producing proximity/encounter information.
+The app is a Node service, not a static export. Use persistent storage and HTTPS when hosting. NorthMark deployment and physical ESP32 checks remain external handoff work. Meta image judging has been verified; public venue retrieval has timed out here. The remote PostgreSQL timeout does not block the local SQLite MVP.
 
-The hardware layer should expose only the information required by the software system.
-
-Typical encounter information:
-
-```text
-device_a
-device_b
-timestamp
-optional proximity data
-```
-
-Hardware-specific implementation details should remain isolated from the application whenever possible.
-
-### Application Layer
-
-The QuestGo application is responsible for:
-
-- user accounts
-- device-to-user association
-- user preferences
-- encounter processing
-- quest creation
-- quest acceptance
-- activity completion
-- mutual verification
-- streaks
-- activity history
-
-### Database Layer
-
-Tiger Data is the current persistent data store.
-
-Expected data domains include:
-
-- Users
-- Devices
-- Encounters
-- Quests
-- Quest participants
-- Preferences
-- Completion state
-- Streaks
-
-Detailed schema belongs in `DATABASE.md`.
-
-### Authentication Layer
-
-Users authenticate through external OAuth providers.
-
-Current providers:
-
-- Google
-- Meta / Facebook
-
-QuestGo does not store user passwords.
-
-Authentication establishes the user's identity; QuestGo-specific profile information is stored separately in the application database.
-
-### AI Layer
-
-Meta AI is currently used for quest generation.
-
-AI should generate activities from available context such as:
-
-- activity mode
-- interests
-- available time
-- budget
-- relevant encounter context
-
-AI should not be used where simple deterministic application logic is sufficient.
-
----
-
-## 4. Core Data Flow
-
-```text
-ESP32 devices
-      ↓
-Authenticated Next.js hardware endpoint
-      ↓
-Tiger Data / PostgreSQL encounter transaction
-      ↓
-OpenStreetMap venue lookup + optional Meta AI activity text
-      ↓
-One persisted quest and shared session
-      ↓
-Shared quest state
-   ↙             ↘
-User A          User B
-   ↘             ↙
-Accept / Complete
-      ↓
-Tiger Data
-      ↓
-Streak / history update
-```
-
----
-
-## 5. Product Invariants
-
-Regardless of implementation:
-
-1. A physical proximity event can create a QuestGo encounter.
-2. Both participants in an encounter must reference the same quest.
-3. A quest does not begin until the required participants accept it.
-4. Completion requires confirmation from both participants.
-5. A verified completion may update streaks and engagement data.
-6. Duplicate proximity events should not repeatedly create identical encounters.
-
----
-
-## 6. Architecture Principles
-
-- Prefer the simplest implementation that supports the hackathon demo.
-- Avoid unnecessary services and infrastructure.
-- Keep hardware concerns separate from application concerns.
-- Keep application state in a clear source of truth.
-- Do not duplicate business logic across multiple layers.
-- Avoid premature optimization.
-- Avoid architecture designed for hypothetical future scale.
-- Major architectural changes must be documented here.
-
----
-
-## 7. Current MVP Boundary
-
-The MVP must demonstrate:
-
-```text
-Two devices become nearby
-        ↓
-Encounter is detected
-        ↓
-Both users receive one shared quest
-        ↓
-Both accept
-        ↓
-Both complete and verify
-        ↓
-Streak updates
-```
-
-Anything beyond this flow is secondary until the core experience works reliably.
-
----
-
-## 8. Future Architecture
-
-Potential future capabilities may include:
-
-- multi-device encounters
-- group quests
-- richer location context
-- push notifications
-- native mobile applications
-- recommendation history
-- social connections
-- rewards and achievements
-
-These should not influence the MVP architecture unless explicitly required.
-
-## MVP verification and deployment
-
-The complete application is at `/explore`. A Node production build and local production runtime are verified. `DEPLOYMENT.md` covers Node hosting and an optional Docker image; NorthMark access and physical hardware verification remain external. `next-env.d.ts` is generated by Next.js and is intentionally ignored/untracked, as required by the installed Next.js guide, so development and production type generation do not dirty feature branches. Application source added during the MVP is formatted for readable handoff.
-
-## Achievement photos
-
-Each participant uploads their own photo through an authenticated, same-origin multipart endpoint. Sharp validates and re-encodes the image, corrects orientation and removes metadata. Migration 002 retains legacy photos; migration 003 appends new submissions, validation events and achievement evidence in the isolated PostgreSQL schema or demo SQLite store. This feature adds no external media-storage service or credentials. Protected image routes authorize session membership on every read; public static image hosting is not used. The completed achievement displays both photos in the result and Your stories. Streak calculation still uses mutually completed sessions, now gated by both participants' approved photos and confirmations.
-
-## Shared photo judge
-
-Arjit Magar’s generator and image judge are shared by the standalone `validation/` lab and the main app through `shared/quest-ai.ts`. `shared/meta-ai.ts` uses Meta’s authenticated chat-completions API with image content parts. Main-app live validation never reads `MUSE_MOCK`; only explicitly isolated demo actions can simulate approval. Provider errors are sanitized and incomplete evidence responses fail closed.
-
-
-## Local accounts and storage — current change
-
-The user replaced Google/Facebook OAuth with first-party email/password accounts and opaque browser session cookies. No paid authentication or email service is used. A dedicated SQLite `accounts.sqlite` file is now the explicit local default, separate from demo data; PostgreSQL remains selectable through `QUESTGO_STORAGE=postgres`. This removes the failing remote connection from local account creation while preserving all existing datasets. Password and recovery/session token storage are defined in `DATABASE.md`.
+The current checks cover password storage, account isolation, recovery, expired/revoked sessions, private photos, concurrent session transitions, duplicate-credit prevention and desktop/mobile journeys. See [TASKS.md](TASKS.md), [DEMO.md](DEMO.md) and [DEPLOYMENT.md](DEPLOYMENT.md).

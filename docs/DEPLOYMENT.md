@@ -1,34 +1,43 @@
-# Hosting the MVP
+# Run and host QuestGo
 
-The intended target remains NorthMark. Its account, machine and domain have not been supplied, so no hosted deployment is claimed. The app is a Node.js service with server routes; static-only hosting cannot run its authentication, database or hardware endpoints.
+The application is a Node.js service with server routes. Static-only hosting cannot run its account, database or device endpoints. NorthMark is the intended hosted target; access and deployment have not been supplied.
 
-## Run as a Node service
+## Local production MVP
 
-Use Node.js 22.13 or newer. Install with `npm ci`, configure the runtime environment, apply `npm run db:migrate`, run `npm run build`, and start with `npm start`. Supply a persistent writable `.questgo` directory if demo rooms should survive restarts. Live data always uses PostgreSQL.
+Use Node.js 22.13 or newer:
 
-Serve the app behind HTTPS and set `AUTH_URL` to the actual public origin, such as `https://your-questgo-domain.example`. Configure these exact callback paths on that origin:
+```sh
+npm ci
+cp -n .env.example .env
+npm run build
+AUTH_URL=http://localhost:3101 npm start -- --port 3101 --hostname 127.0.0.1
+```
 
-- Google: `/api/auth/callback/google`
-- Facebook: `/api/auth/callback/facebook`
+Open `http://localhost:3101/explore`. Create an account, save its recovery code and sign in, or choose the separate full demo. No Google/Facebook settings or authentication API key are needed. `QUESTGO_STORAGE=sqlite` is the default and automatically initializes the account and demo databases.
 
-Set `DATABASE_URL`, a stable `AUTH_SECRET`, both provider IDs/secrets and `META_AI_API_KEY` (optional model override: `META_AI_MODEL`) in the host's secret environment. Never bake `.env` or credentials into a build. Demo cookies default to secure transport in production. For an explicit local HTTP production test, use `AUTH_URL=http://localhost:<port>`.
+## Persistent storage and HTTPS
 
-Set `QUESTGO_DEMO_ENABLED=false` for a live-only deployment; leave it enabled for an explicitly labeled public demo. The current repository intentionally favors a single application instance, with a serialized small-dataset transaction path and in-process request/geocoding limits. Do not claim multi-instance production readiness.
+For hosted use, put `QUESTGO_DATA_DIR` on a writable persistent volume and back it up. It contains separate `accounts.sqlite` and `demo.sqlite` files, including credentials, sessions and photos. Do not use an ephemeral filesystem for accounts you intend to keep. SQLite is appropriate for this small single-instance MVP; do not mount the same file into independent replicas.
+
+Serve behind HTTPS and set `AUTH_URL` to the real public origin. Account cookies are HTTP-only, SameSite=Lax and Secure in production, with a local HTTP loopback exception for testing. Keep the proxy and application origin consistent: mutating browser routes reject different origins. Preserve the demo `AUTH_SECRET` across restarts if keeping sample sessions; real account tokens are backed by the database and do not require that secret.
+
+Set `META_AI_API_KEY` in the host's environment for live photo checks. Sign-in does not depend on it. Keep `.env`, database files and device credentials out of source control and container images. `QUESTGO_DEMO_ENABLED=false` disables public sample-room access when desired.
+
+## Optional PostgreSQL
+
+Select `QUESTGO_STORAGE=postgres`, configure `DATABASE_URL`, then run `npm run db:migrate` before starting. QuestGo uses its isolated `questgo_app` schema. This does not copy accounts from SQLite or overwrite public datasets. Choose one backend intentionally; there is no automatic fallback. The configured remote connection currently times out and needs verification before this deployment mode is used.
 
 ## Optional container
 
-A Dockerfile is included. It retains the development tools needed for the migration/provisioning commands to keep the hackathon workflow simple. The image excludes `.env`, local databases, Git history and screenshots, and runs the application as a non-root user. Docker is unavailable in the implementation environment, so the container build itself is unverified.
+The included Dockerfile runs as a non-root user. Mount persistent storage for account data:
 
 ```sh
 docker build -t questgo-mvp .
-docker run --rm --env-file .env questgo-mvp npm run db:migrate
-docker run --rm -p 3000:3000 --env-file .env --mount source=questgo-demo,target=/app/.questgo questgo-mvp
+docker run --rm -p 3000:3000 --env-file .env --mount source=questgo-data,target=/app/.questgo questgo-mvp
 ```
 
-Provide an HTTPS public origin for hosted use. The local HTTP production exception above is only for local testing.
+Docker is unavailable here, so the container build itself remains unverified.
 
 ## Hosted check
 
-Check `/api/health`: `ready` means the configured database can be read; `demo` means only the demo storage mode is available; `unconfigured`/`unavailable` returns 503. This does not prove the OAuth providers, Meta AI or physical devices work.
-
-After deployment, sign in through each real provider, provision and link two devices, observe recent heartbeats, opt in from two phones, and trigger a real encounter. Verify one shared quest, both acceptances, both approved photos, both confirmations and one history/streak update. Test venue lookup and its fallback under the hosted network conditions. Record which checks actually passed.
+`/api/health` should report `ready` when the selected account store can be read. This does not verify Meta, venue services or physical devices. Create two accounts in different browser profiles, link two provisioned ESP32s, observe fresh heartbeats, opt in and trigger a real encounter. Verify the shared offer, both acceptances, both approved photos, both confirmations and one history/streak update. Verify logout and recovery revoke previous session cookies.

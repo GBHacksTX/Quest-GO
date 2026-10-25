@@ -4,7 +4,7 @@ The local MVP explicitly uses `QUESTGO_STORAGE=sqlite`. Real accounts and their 
 
 Migration 004 adds `questgo_password_accounts` and `questgo_login_sessions`. Passwords use salted scrypt hashes. Recovery codes and browser session tokens are stored only as hashes. Password recovery rotates the recovery code and revokes existing sessions. Demo storage contains no real account credentials. SQLite migrations apply automatically; PostgreSQL requires `npm run db:migrate`. Existing users and evidence remain intact.
 
-Live accounts use Tiger Data/PostgreSQL through `DATABASE_URL`. Run `npm run db:migrate` before enabling live sign-in. Migration `001_core.sql` creates users, devices, encounters, quests, sessions and participants. Credentials never reach the browser or ESP32.
+The optional remote backend uses Tiger Data/PostgreSQL through `DATABASE_URL` when explicitly selected. Run `npm run db:migrate` before enabling that backend. Migration `001_core.sql` creates users, devices, encounters, quests, sessions and participants. Credentials never reach the browser or ESP32.
 
 The explicitly labeled demo uses a separate SQLite database at `.questgo/demo.sqlite`, using Node 22's built-in SQLite support. It requires no external account. Demo rooms have separate user/device identities and never write to the live PostgreSQL database. The local data directory is ignored by Git. The demo is for local or single-instance evaluation; turn it off for a public live deployment with `QUESTGO_DEMO_ENABLED=false`.
 

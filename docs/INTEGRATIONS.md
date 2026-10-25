@@ -1,43 +1,33 @@
 # Integration readiness
 
-Updated October 25, 2026. Implementation, local verification and external verification are separate facts.
+Updated October 25, 2026. The local MVP uses direct accounts and browser cookies. No authentication API key, OAuth provider or paid email service is required.
 
-| Integration | Implemented behavior | Current verification |
-| --- | --- | --- |
-| PostgreSQL / Tiger Data | Versioned migrations and transactions in the isolated `questgo_app` schema; additive submission, validation and achievement tables. | Disposable PostgreSQL 17 checks pass, including preservation of a pre-existing public table. The supplied remote connection times out; it has not been modified. |
-| Google / Facebook | Auth.js sessions, provider/account identity mapping and protected APIs. | Google credentials are configured locally. Facebook credentials are empty in the checked local file. Provider initiation clears a prior demo cookie and Google requests account selection; regression checks pass. Real OAuth callbacks remain unverified. |
-| Meta AI | Arjit Magar’s shared quest generator and image judge, using authenticated chat completions and image content parts. | The configured key returned models; `muse-spark-1.3` successfully checked an image. Real upload-API rejection blocks completion. Incomplete responses and provider failures fail closed. |
-| Nearby venues | OpenStreetMap Overpass and Nominatim, real source/directions links, unknown prices and a free fallback. | Fixture checks pass. Live venue calls have timed out here; successful external retrieval is not claimed. |
-| ESP32 | Private device provisioning and claims, per-device authenticated heartbeat/encounter routes. | Software authentication and lifecycle checks pass. Teammate firmware and two physical devices still need a real encounter check. |
-| Hosting | Node production build, local runtime, deployment instructions and optional Dockerfile. | Local production runtime works. NorthMark access, HTTPS, real callback URLs and a hosted end-to-end check remain external. Docker is unavailable here. |
+| Integration | Current implementation and verification |
+| --- | --- |
+| Accounts | Email/password registration, cookie login, logout and one-time recovery codes work locally. Tests cover password hashing, wrong credentials, duplicate emails, separate users, revoked/expired sessions, recovery rotation and request limits. Google, Facebook, OAuth routes and Auth.js have been removed. |
+| Local storage | `QUESTGO_STORAGE=sqlite` stores real accounts in `accounts.sqlite` and samples in `demo.sqlite`. Both persist under `.questgo/` or `QUESTGO_DATA_DIR`. No account data is sent to the configured remote database in this mode. |
+| Optional PostgreSQL | Explicitly select `QUESTGO_STORAGE=postgres` and configure `DATABASE_URL`. Disposable PostgreSQL 17 checks verify migrations, existing-data preservation, password accounts, recovery and the quest/photo lifecycle. The supplied remote connection still times out and has not been modified. |
+| Meta AI | Arjit Magar's shared generator and image judge are integrated. A real `muse-spark-1.3` vision request and upload-API rejection have passed. Meta is needed for live image checks, not for signing in. |
+| Nearby venues | OpenStreetMap Overpass/Nominatim provide places, source links and directions. Fixture checks pass; public calls have timed out here. A labelled free activity preserves the shared flow. |
+| ESP32 | Per-device Wi-Fi credentials, claims, heartbeats and encounter routes are implemented. Teammate firmware and two physical devices still need a real encounter check. |
+| Hosting | Production build and local Node runtime work. A persistent data directory and HTTPS are required for a hosted account deployment. NorthMark deployment and physical-device checks are not claimed complete. |
 
-## Credentials
+## Environment
 
-Edit the existing ignored `.env` directly. Do not overwrite it with a fresh template or paste credentials into chat. `.env.example` contains empty placeholders.
+Keep existing `.env` values private and intact. The current template uses `QUESTGO_STORAGE=sqlite`. `DATABASE_URL` is optional and read only when PostgreSQL is explicitly selected. `QUESTGO_DATA_DIR` can point to a persistent directory. `AUTH_URL` is the actual app origin; it is not a Google callback setting. Optional `AUTH_SECRET` signs demo cookies only.
 
-- `DATABASE_URL`: PostgreSQL/Tiger Data connection string with the provider's required connection settings.
-- `AUTH_SECRET`: a stable, locally generated random secret.
-- `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`: Google OAuth application credentials.
-- `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET`: Facebook Login app credentials. A Meta AI API key does not replace these.
-- `META_AI_API_KEY`: server-side Meta AI key for generation and photo checking.
-- `AUTH_URL`: actual app origin. Hosted callbacks are `/api/auth/callback/google` and `/api/auth/callback/facebook` on that origin.
+`META_AI_API_KEY` remains the server-side key for generation and photo checks. Meta defaults to `https://api.meta.ai/v1` and `muse-spark-1.3`; optional overrides are `META_AI_BASE_URL`, `META_AI_MODEL` and `META_AI_VISION_MODEL`. Main-app live validation ignores `MUSE_MOCK`. The [Meta API reference](https://dev.meta.ai/docs/api-reference) and [image guide](https://dev.meta.ai/docs/image-understanding) document the request format.
 
-Meta defaults to `https://api.meta.ai/v1` and `muse-spark-1.3`. Optional overrides are `META_AI_BASE_URL`, `META_AI_MODEL` and `META_AI_VISION_MODEL`. Legacy `MUSE_*` provider settings remain supported for the teammate's lab. Main-app live validation **never** enables mock approval through `MUSE_MOCK`.
+`npx tsx scripts/check-meta.ts` checks the real vision API with an unrelated generated color swatch. `QUESTGO_TEST_META=true` adds real rejection checks to the browser/API suite. Real photo checks send the submitted image and its saved criteria to Meta; the upload interface explains this.
 
-The [Meta API reference](https://dev.meta.ai/docs/api-reference) and [image-understanding guide](https://dev.meta.ai/docs/image-understanding) document the request format. `npx tsx scripts/check-meta.ts` sends an unrelated generated color swatch and checks that it cannot prove a shared activity. Real user photos are sent to Meta only when checking their evidence; this is disclosed in the upload interface.
+## Venue services
 
-## Venue data and failure behavior
+[Overpass](https://dev.overpass-api.de/overpass-doc/en/criteria/per_tag.html) supplies venue identities and coordinates. AI cannot replace those fields. Prices, opening hours and access must be checked with the venue. Purchases and bookings happen externally.
 
-[OpenStreetMap Overpass](https://dev.overpass-api.de/overpass-doc/en/criteria/per_tag.html) supplies venue identities and coordinates. AI output cannot replace those source fields. Opening hours, access and prices are not verified; the interface asks people to check and agree before spending. Zero-spend requests exclude paid venue categories.
+Manual area lookup uses Nominatim with a User-Agent, caching and at least 1.1 seconds between requests, following its [public usage policy](https://operations.osmfoundation.org/policies/nominatim/). Browser coordinates bypass geocoding. `QUESTGO_GEOCODER_URL` and `QUESTGO_OVERPASS_URL` can select other services. The public endpoints and in-process limits suit a small single-instance demonstration.
 
-Manual area lookup uses Nominatim with an identifying User-Agent, caching and a serialized gap of at least 1.1 seconds between requests, following its [public usage policy](https://operations.osmfoundation.org/policies/nominatim/). Browser coordinates bypass geocoding. `QUESTGO_GEOCODER_URL` and `QUESTGO_OVERPASS_URL` support replacement services. Public endpoints and in-process limits suit a small single-instance demonstration; increasing traffic needs an appropriate provider or self-hosted service.
+## Verification
 
-Venue lookup, generation and image judging have bounded timeouts. Venue/generation failure keeps a free, photographable quest. Image-check failure keeps the submission with an error and blocks confirmation until a retry succeeds. External requests run outside database transactions. A stale result cannot approve a replacement image.
+Twenty automated tests, nine desktop/mobile/API scenarios, TypeScript, the production build and disposable PostgreSQL checks pass. Browser checks include real local account creation, recovery-code acknowledgement, login/logout, account isolation and session replay rejection, alongside the complete saved demo quest with photos and streaks.
 
-## Local verification
-
-TypeScript, the production build, 17 automated tests and eight API/browser scenarios pass. Tests cover independent identities, consent, photo normalization and access, rejected/error evidence, replacement races, retries, saved history, UTC streaks and duplicate-credit prevention. A disposable PostgreSQL check also verifies the new tables and that an existing public dataset is untouched. The standalone validation lab type-checks after generating its Next.js route types.
-
-The production app runs locally at [localhost:3101/explore](http://localhost:3101/explore). Automated screenshots are in the ignored `artifacts/` directory. No hosted deployment or remote push has been performed.
-
-See [HARDWARE.md](HARDWARE.md), [DATABASE.md](DATABASE.md), [DEPLOYMENT.md](DEPLOYMENT.md) and [DEMO.md](DEMO.md) for the handoffs and commands.
+The local application is [localhost:3101/explore](http://localhost:3101/explore). See [DEMO.md](DEMO.md), [HARDWARE.md](HARDWARE.md), [DATABASE.md](DATABASE.md) and [DEPLOYMENT.md](DEPLOYMENT.md) for the remaining handoffs. No remote push or hosted deployment has been performed.
