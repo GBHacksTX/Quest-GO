@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   Upload,
 } from "lucide-react";
+import { photoCriteria } from "@/lib/photo-criteria";
 import type { AppView, SessionView } from "@/lib/model";
 
 function SavedPhoto({
@@ -49,7 +50,12 @@ function SavedPhoto({
       <figcaption>
         <span>{person.name}</span>
         <span>
-          <Check size={12} /> Photo saved
+          <Check size={12} />{" "}
+          {person.photo.validation?.status === "approved"
+            ? person.photo.validation.provider === "demo"
+              ? "Demo approval"
+              : "Photo checked"
+            : "Photo saved"}
         </span>
       </figcaption>
     </figure>
@@ -82,6 +88,8 @@ export function AchievementUpload({
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [useMeta, setUseMeta] = useState(false);
+  const validation = self.photo?.validation;
   const chooser = useRef<HTMLInputElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -113,6 +121,7 @@ export function AchievementUpload({
     try {
       const form = new FormData();
       form.append("photo", file);
+      if (useMeta) form.append("validationMode", "meta");
       const response = await fetch(`/api/quests/${session.id}/photos`, {
         method: "POST",
         body: form,
@@ -142,9 +151,61 @@ export function AchievementUpload({
         <Camera size={13} /> YOUR ACHIEVEMENT PHOTO
       </span>
       <p>
-        Save a little proof of your adventure. Capture the activity, place or
-        result—faces are optional. Each person adds their own photo.
+        Each person uploads their own photo showing the requirements below.
+        Faces are optional. Meta AI checks the visible evidence before you
+        confirm.
       </p>
+      <ul className="photo-criteria">
+        {photoCriteria(session.quest).map((criterion) => (
+          <li key={criterion}>{criterion}</li>
+        ))}
+      </ul>
+      {validation && (
+        <div className={`photo-validation ${validation.status}`} role="status">
+          <strong>
+            {validation.status === "approved"
+              ? validation.provider === "demo"
+                ? "Approved in demo simulation"
+                : "Photo check passed"
+              : validation.status === "rejected"
+                ? "Try a clearer photo"
+                : validation.status === "error"
+                  ? "Photo saved · check unavailable"
+                  : "Checking your photo…"}
+          </strong>
+          <p>{validation.reasoning}</p>
+          {validation.criteria.length > 0 && (
+            <ul>
+              {validation.criteria.map((c) => (
+                <li key={c.criterion}>
+                  {c.met ? "✓" : "○"} {c.criterion}
+                  <small>{c.evidence}</small>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!self.completed && validation.status !== "approved" && (
+            <button
+              className="text-action"
+              disabled={
+                disabled ||
+                uploading ||
+                (validation.status === "pending" &&
+                  Date.now() - validation.checkedAt < 30_000)
+              }
+              onClick={() =>
+                void perform({
+                  action: "retryPhoto",
+                  sessionId: session.id,
+                  photoId: self.photo!.id,
+                })
+              }
+            >
+              Retry photo check
+            </button>
+          )}
+        </div>
+      )}
       {self.photo && (
         <SavedPhoto key={self.photo.id} session={session} person={self} />
       )}
@@ -201,6 +262,17 @@ export function AchievementUpload({
               <Camera size={15} /> Take photo
             </button>
           </div>
+          {data.demo && file && (
+            <label className="photo-ai-choice">
+              <input
+                type="checkbox"
+                checked={useMeta}
+                onChange={(event) => setUseMeta(event.target.checked)}
+                disabled={uploading || disabled}
+              />{" "}
+              Use real Meta AI for this photo
+            </label>
+          )}
           {file && (
             <button
               className="app-button primary wide"
@@ -212,7 +284,7 @@ export function AchievementUpload({
               ) : (
                 <Upload size={15} />
               )}
-              {uploading ? "Saving photo…" : "Save my achievement photo"}
+              {uploading ? "Saving and checking…" : "Save my achievement photo"}
             </button>
           )}
           {data.demo && !file && !self.photo && (
@@ -241,11 +313,14 @@ export function AchievementUpload({
         <LockKeyhole size={12} />
         {self.completed
           ? "Your photo is locked after your confirmation."
-          : "Only you and your quest partner can view these photos."}
+          : data.demo && validation?.provider !== "meta"
+            ? "Visible only in this demo room. AI checking is simulated."
+            : "Visible to your quest partner. Sent to Meta AI for checking."}
       </small>
       {data.demo && (
         <small>
-          Sample images are demo artwork, not evidence of a real activity.
+          Demo approvals are simulated unless you select real Meta AI. Demo
+          progress stays separate from real accounts.
         </small>
       )}
     </div>

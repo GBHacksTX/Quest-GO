@@ -396,7 +396,7 @@ Participant B: complete
 QuestSession: completed
 ```
 
-Future verification methods could include additional signals, but they are not required by the current domain model.
+Each participant must also have an approved photo before confirming. The session needs both approved photos and both confirmations. Additional signals remain outside the current implementation.
 
 ---
 
@@ -404,7 +404,7 @@ Future verification methods could include additional signals, but they are not r
 
 Each `Participant` can attach one photo to an active `QuestSession`. It records that person's activity evidence. Before confirming completion they may replace it; after their confirmation it is locked. Photos are visible only to participants in that session.
 
-A new completion requires every participant's own photo and confirmation. The completed session is the achievement record: shared quest, participants, their photos and completion date. It appears in history and feeds the existing streak calculation. Adding photos alone does not award credit, and the app does not claim automated image verification. Previously completed sessions are preserved as historical records even if they predate photo support.
+A new completion requires every participant's own photo and confirmation. The completed session is the achievement record: shared quest, participants, their photos and completion date. It appears in history and feeds the existing streak calculation. Adding photos alone does not award credit, and image checks alone never award credit. Previously completed sessions are preserved as historical records even if they predate photo support. New uploads are immutable submissions with increasing revisions. A photo validation is a pending, approved, rejected or error event tied to one exact submission and its saved criteria. Main-app live approval requires the Meta provider; demo simulation cannot approve a real identity. Both approved photos and both confirmations create one append-only achievement evidence record. Stale responses cannot approve a replacement photo.
 
 # 12. Preferences
 
@@ -624,7 +624,7 @@ The implementation and documentation should evolve together.
 
 The implemented rules are described in `PRODUCT.md`. Availability is opt-in, a five-minute offer needs every participant's acceptance, active sessions expire after 24 hours, and the same device pair has a ten-minute cooldown. Skipping, leaving and expiration receive no completion credit. History is the source of truth for UTC-day streaks; retrying a completed session cannot award extra credit.
 
-Use the smaller participant time and spending limits, and Work mode if either person requests it. One unresolved session per person prevents competing encounters. Venue identities come from OpenStreetMap; Gemini writes optional activity instructions, with a free fallback when lookup fails. All participants refer to the same saved quest.
+Use the smaller participant time and spending limits, and Work mode if either person requests it. One unresolved session per person prevents competing encounters. Venue identities come from OpenStreetMap; Meta AI writes optional activity instructions, with a free fallback when lookup fails. All participants refer to the same saved quest.
 
 Device ownership transfer, group quest rules, additional verification and rewards/XP remain undecided and are not implemented. Hardware advertisements and proximity thresholds belong to the teammate-owned firmware and still require coordination.
 

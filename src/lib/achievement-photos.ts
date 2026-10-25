@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { AppError, attachAchievementPhoto, view } from "./domain";
-import type { State } from "./model";
-import { transact } from "./store";
+import { metaModel, MuseError } from "../../shared/meta-ai";
+import { validateQuest } from "../../shared/quest-ai";
+import { photoCriteria } from "./photo-criteria";
+import type { PhotoValidation, State } from "./model";
+import { transact, type Query } from "./store";
 
 export const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -54,38 +57,219 @@ export async function normalizePhoto(input: Buffer, contentType: string) {
     );
   }
 }
+type Image = Awaited<ReturnType<typeof normalizePhoto>>;
+type Judge = typeof validateQuest;
+type CheckTask = {
+  photoId: string;
+  pending: PhotoValidation;
+  criteria: string[];
+  title: string;
+  description: string;
+  content: string;
+};
+function pendingValidation(demo: boolean): PhotoValidation {
+  return {
+    id: randomUUID(),
+    status: "pending",
+    provider: demo ? "demo" : "meta",
+    model: demo ? "simulation" : metaModel(true),
+    checkedAt: Date.now(),
+    reasoning: "Checking your photo against the quest criteria.",
+    criteria: [],
+  };
+}
+// Every event is inserted; previous submissions and checks are never replaced.
+async function appendValidation(
+  query: Query,
+  photoId: string,
+  value: PhotoValidation,
+) {
+  const [row] = await query(
+    "SELECT COALESCE(MAX(ordinal),0) AS last FROM questgo_photo_validations WHERE photo_id=$1",
+    [photoId],
+  );
+  await query(
+    "INSERT INTO questgo_photo_validations(id,photo_id,ordinal,status,checked_at,data) VALUES($1,$2,$3,$4,$5,$6)",
+    [
+      value.id,
+      photoId,
+      Number(row.last) + 1,
+      value.status,
+      value.checkedAt,
+      JSON.stringify(value),
+    ],
+  );
+}
+async function finishCheck(
+  demo: boolean,
+  userId: string,
+  sessionId: string,
+  viewerId: string,
+  task: CheckTask,
+  judge: Judge,
+) {
+  let validation: PhotoValidation;
+  try {
+    const result = await judge(
+      {
+        title: task.title,
+        description: task.description,
+        completionCriteria: task.criteria,
+      },
+      `data:image/jpeg;base64,${task.content}`,
+      { demo: task.pending.provider === "demo" },
+    );
+    validation = {
+      ...task.pending,
+      id: randomUUID(),
+      checkedAt: Date.now(),
+      status: result.completed ? "approved" : "rejected",
+      confidence: result.confidence,
+      reasoning: result.reasoning,
+      criteria: result.criteria,
+    };
+  } catch (error) {
+    validation = {
+      ...task.pending,
+      id: randomUUID(),
+      checkedAt: Date.now(),
+      status: "error",
+      reasoning:
+        error instanceof MuseError
+          ? error.message
+          : "The photo check could not finish. Your photo is saved; please retry.",
+    };
+  }
+  return transact(demo, async (state, query) => {
+    const [latest] = await query(
+      "SELECT data FROM questgo_photo_validations WHERE photo_id=$1 ORDER BY ordinal DESC LIMIT 1",
+      [task.photoId],
+    );
+    // An older request cannot overwrite a newer retry of this image.
+    if (latest && JSON.parse(String(latest.data)).id === task.pending.id) {
+      await appendValidation(query, task.photoId, validation);
+      const person = photoSession(state, userId, sessionId).participants.find(
+        (p) => p.userId === userId,
+      )!;
+      if (person.photo?.id === task.photoId)
+        person.photo.validation = validation;
+    }
+    return view(state, viewerId, demo);
+  });
+}
 export async function storeAchievementPhoto(
   demo: boolean,
   userId: string,
   sessionId: string,
-  image: Awaited<ReturnType<typeof normalizePhoto>>,
+  image: Image,
   viewerId = userId,
+  useMeta = !demo,
+  judge: Judge = validateQuest,
 ) {
-  return transact(demo, async (state, query) => {
-    const photo = {
-      id: randomUUID(),
-      uploadedAt: Date.now(),
-      width: image.width,
-      height: image.height,
-      size: image.data.length,
-    };
-    attachAchievementPhoto(state, userId, sessionId, photo);
-    await query(
-      "INSERT INTO achievement_photos(id,session_id,user_id,content,width,height,size_bytes,uploaded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(session_id,user_id) DO UPDATE SET id=excluded.id,content=excluded.content,width=excluded.width,height=excluded.height,size_bytes=excluded.size_bytes,uploaded_at=excluded.uploaded_at",
-      [
-        photo.id,
-        sessionId,
-        userId,
-        image.data.toString("base64"),
-        photo.width,
-        photo.height,
-        photo.size,
-        photo.uploadedAt,
-      ],
-    );
-    photoSession(state, viewerId, sessionId);
-    return view(state, viewerId, demo);
-  });
+  const task = await transact(
+    demo,
+    async (state, query): Promise<CheckTask> => {
+      const session = photoSession(state, userId, sessionId);
+      const quest = state.quests.find((q) => q.id === session.questId)!;
+      const criteria = photoCriteria(quest);
+      const [previous] = await query(
+        "SELECT COALESCE(MAX(revision),0) AS last FROM questgo_photo_submissions WHERE session_id=$1 AND user_id=$2",
+        [sessionId, userId],
+      );
+      const pending = pendingValidation(demo && !useMeta);
+      const photo = {
+        id: randomUUID(),
+        uploadedAt: Date.now(),
+        width: image.width,
+        height: image.height,
+        size: image.data.length,
+        revision: Number(previous.last) + 1,
+        validation: pending,
+      };
+      attachAchievementPhoto(state, userId, sessionId, photo);
+      photoSession(state, viewerId, sessionId);
+      const content = image.data.toString("base64");
+      await query(
+        "INSERT INTO questgo_photo_submissions(id,session_id,user_id,revision,content,width,height,size_bytes,criteria_json,uploaded_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
+        [
+          photo.id,
+          sessionId,
+          userId,
+          photo.revision,
+          content,
+          photo.width,
+          photo.height,
+          photo.size,
+          JSON.stringify(criteria),
+          photo.uploadedAt,
+        ],
+      );
+      await appendValidation(query, photo.id, pending);
+      return {
+        photoId: photo.id,
+        pending,
+        criteria,
+        title: quest.title,
+        description: quest.description,
+        content,
+      };
+    },
+  );
+  // Network requests never hold the database transaction open.
+  return finishCheck(demo, userId, sessionId, viewerId, task, judge);
+}
+export async function retryPhotoValidation(
+  demo: boolean,
+  userId: string,
+  sessionId: string,
+  photoId: string,
+  judge: Judge = validateQuest,
+) {
+  const task = await transact(
+    demo,
+    async (state, query): Promise<CheckTask | undefined> => {
+      const session = photoSession(state, userId, sessionId);
+      const person = session.participants.find((p) => p.userId === userId)!;
+      if (session.status !== "active" || person.completedAt)
+        throw new AppError("This photo can no longer be changed.", 409);
+      if (person.photo?.id !== photoId)
+        throw new AppError("Your photo changed. Refresh before retrying.", 409);
+      const previous = person.photo.validation;
+      if (previous?.status === "approved") return;
+      if (
+        previous?.status === "pending" &&
+        Date.now() - previous.checkedAt < 30_000
+      )
+        throw new AppError(
+          "Your photo is still being checked. Try again in a moment.",
+          409,
+        );
+      const [stored] = await query(
+        "SELECT content,criteria_json FROM questgo_photo_submissions WHERE id=$1 AND user_id=$2 AND session_id=$3",
+        [photoId, userId, sessionId],
+      );
+      if (!stored)
+        throw new AppError(
+          "Please upload this photo again so it can be checked.",
+          409,
+        );
+      const quest = state.quests.find((q) => q.id === session.questId)!;
+      const pending = pendingValidation(demo && previous?.provider === "demo");
+      person.photo.validation = pending;
+      await appendValidation(query, photoId, pending);
+      return {
+        photoId,
+        pending,
+        content: String(stored.content),
+        criteria: JSON.parse(String(stored.criteria_json)),
+        title: quest.title,
+        description: quest.description,
+      };
+    },
+  );
+  return task
+    ? finishCheck(demo, userId, sessionId, userId, task, judge)
+    : transact(demo, (state) => view(state, userId, demo));
 }
 export async function readAchievementPhoto(
   demo: boolean,
@@ -95,12 +279,19 @@ export async function readAchievementPhoto(
 ) {
   return transact(demo, async (state, query) => {
     const session = photoSession(state, viewerId, sessionId);
-    if (!session.participants.some((person) => person.userId === ownerId))
-      throw new AppError("Photo not found.", 404);
-    const [photo] = await query(
-      "SELECT content FROM achievement_photos WHERE session_id=$1 AND user_id=$2",
-      [sessionId, ownerId],
+    const person = session.participants.find((p) => p.userId === ownerId);
+    if (!person?.photo) throw new AppError("Photo not found.", 404);
+    const [submission] = await query(
+      "SELECT content FROM questgo_photo_submissions WHERE id=$1 AND session_id=$2 AND user_id=$3",
+      [person.photo.id, sessionId, ownerId],
     );
+    const [legacy] = submission
+      ? []
+      : await query(
+          "SELECT content FROM achievement_photos WHERE id=$1 AND session_id=$2 AND user_id=$3",
+          [person.photo.id, sessionId, ownerId],
+        );
+    const photo = submission || legacy;
     if (!photo) throw new AppError("Photo not found.", 404);
     return Buffer.from(String(photo.content), "base64");
   });

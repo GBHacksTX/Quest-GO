@@ -50,7 +50,7 @@ When two eligible devices meet, both people see the same quest offer, the other 
 
 The offer explains what to do, expected duration, estimated spending per person, and any venue involved. Show a real venue's name, address or area, and a link to details or directions when available. Label estimates honestly; suggestions do not guarantee a venue is open, available, or bookable.
 
-Use a verified place-data source for real venue information. Gemini may help select or describe an activity, but invented businesses, exact prices, and opening hours must not be presented as facts. Decide the provider and location requirements before implementing venue suggestions.
+Use a verified place-data source for real venue information. Meta AI may help select or describe an activity, but invented businesses, exact prices, and opening hours must not be presented as facts. Decide the provider and location requirements before implementing venue suggestions.
 
 Generate one offer for the shared session. While preparing it, show a bounded loading state; if venue lookup fails, offer a clearly described retry or suitable fallback rather than displaying fabricated results. If several people are nearby, choose one eligible pair at a time; the pairing rule still needs definition.
 
@@ -72,9 +72,9 @@ Provide a way to leave an activity. Proposed behavior: leaving ends it without c
 
 Each participant takes a photo or selects a JPEG, PNG or WebP image, previews it, and explicitly saves it. A photo of the activity, place or result is enough; faces are optional. Uploads are limited to 10 MB and 40 megapixels, then resized to at most 1600 pixels and saved as JPEG with metadata removed.
 
-Each person must save their own photo before confirming their part. A failed upload retains the selected image for retry and does not unlock confirmation. Before confirming, they can replace their own photo. After confirming, that photo is locked. Only participants can view either photo; there are no public image links.
+The offer displays concrete things each photo must show before either person accepts. Meta AI checks each submitted photo against those saved criteria, using Arjit Magar’s image judge. It checks visible evidence, not whether a conversation happened or how long an activity took. Each person must receive approval for their own photo before confirming their part. A failed upload retains the selected image for retry and does not unlock confirmation. Before confirming, they can replace their own photo. After confirming, that photo is locked. Only participants can view either photo; there are no public image links.
 
-The first confirmation waits for the other person. The session completes and earns streak credit only after both photos and both confirmations are saved. Photos are a shared record plus mutual confirmation, not automated proof that an activity physically happened. If someone never finishes, the existing expiration/leave paths apply without completion credit.
+The first confirmation waits for the other person. The session completes and earns streak credit only after both approved photos and both confirmations are saved. A rejection explains missing evidence and lets the person upload a clearer photo. A service error keeps the photo, blocks confirmation, and offers a retry. AI checks can be wrong and do not prove an activity physically happened; mutual confirmation remains required. Demo approvals are labelled simulations unless real AI is explicitly selected. If someone never finishes, the existing expiration/leave paths apply without completion credit.
 
 ### 9. See the result and return home
 
@@ -90,9 +90,9 @@ Availability is explicit and expires after 45 seconds without a foreground brows
 
 Use the lower time and budget limits. If either person chooses Work mode, the shared activity uses Work mode and lasts at most 15 minutes. Combine interests as suggestion context. Place radius is bounded by available time and capped at 1.2 km; walking time is an estimate, not a routing guarantee. Unknown venue prices remain variable, with both people told to check the venue and respect their agreed spending limit.
 
-Offers expire after five minutes; active quests after 24 hours. Before activation, either person can pass or withdraw acceptance. After activation, either can leave without completion credit. An ended quest can be dismissed; the person remains paused until choosing availability again. The same pair has a ten-minute encounter cooldown. A completed achievement requires a photo and confirmation from every participant. Completed sessions count once toward history and once per distinct UTC calendar day toward streaks.
+Offers expire after five minutes; active quests after 24 hours. Before activation, either person can pass or withdraw acceptance. After activation, either can leave without completion credit. An ended quest can be dismissed; the person remains paused until choosing availability again. The same pair has a ten-minute encounter cooldown. A new completed achievement requires an approved photo and confirmation from every participant. Submission replacements and validation attempts are appended to new evidence tables; previous data is retained. Completed sessions count once toward history and once per distinct UTC calendar day toward streaks.
 
-Nearby places come from OpenStreetMap with source and directions links. Gemini optionally writes the activity text. A missing provider, invalid response or timeout uses a free activity with a visible fallback explanation. A live offer can retry nearby lookup only before either person accepts.
+Nearby places come from OpenStreetMap with source and directions links. Meta AI optionally writes the activity text. A missing provider, invalid response or timeout uses a free activity with a visible fallback explanation. A live offer can retry nearby lookup only before either person accepts.
 
 The remaining external work is provider credentials/callback verification, NorthMark hosting access and actual ESP32 firmware integration. Device ownership transfer, embedded maps, in-app payments and group matching remain outside this MVP.
 

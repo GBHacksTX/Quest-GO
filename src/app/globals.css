@@ -894,3 +894,16 @@ main {
     visibility:hidden;
   }
 }
+
+/* Evidence requirements and validation feedback share the existing card palette. */
+.quest-photo-plan { margin: 24px 0; padding: 18px; border-radius: 16px; background: #f2f3e9; }
+.quest-photo-plan h3 { margin: 0 0 8px; font-size: 16px; }
+.quest-photo-plan p, .quest-photo-plan li, .photo-criteria li { font-size: 13px; line-height: 1.7; }
+.quest-photo-plan ul, .photo-criteria { padding-left: 19px; }
+.photo-validation { border: 1px solid #d9d8c8; border-radius: 12px; padding: 14px; margin: 14px 0; text-align: left; background: #f7f5ed; }
+.photo-validation.approved { border-color: #a9ba9b; background: #edf3e7; }
+.photo-validation.rejected, .photo-validation.error { border-color: #d8b79e; background: #fcf1e7; }
+.photo-validation strong { font-size: 13px; }
+.photo-validation ul { padding-left: 16px; font-size: 12px; line-height: 1.6; }
+.photo-validation li small { display: block; margin: 2px 0 9px; }
+.photo-ai-choice { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 12px 0; }

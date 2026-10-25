@@ -21,8 +21,8 @@ Open [QuestGo](http://localhost:3000/explore). No API keys, database account or 
 5. Choose **Simulate a nearby encounter**. Both sample participants now share one saved quest. The sample venue is illustrative.
 6. Choose **I’m in**. The offer stays waiting until the partner accepts. Reload to see that your choice is saved.
 7. In the labeled demo controls, choose **Partner accepts**. The quest becomes active.
-8. Choose or take a photo, inspect its preview, and choose **Save my achievement photo**. The demo also offers an explicitly labeled sample image. Then choose **We did it — confirm my part**. You are still waiting for the partner's confirmation.
-9. Choose **Partner adds a sample photo**, then **Partner confirms completion**. The result screen shows verified mutual completion, both achievement photos, history and the day's streak credit.
+8. Choose or take a photo, inspect its preview, and choose **Save my achievement photo**. The demo also offers an explicitly labeled sample image. The default demo approval is labelled as simulated; with a configured key you can select **Use real Meta AI for this photo** instead. A real rejection explains the missing evidence and keeps confirmation disabled. After approval, choose **We did it — confirm my part**. You are still waiting for the partner's confirmation.
+9. Choose **Partner adds a sample photo**, then **Partner confirms completion**. The result screen shows mutual completion, both achievement photos, history and the day's streak credit.
 10. Return to exploring, then open **Your stories**. You remain paused until choosing availability again.
 
 Use **Start fresh** for another immediate demonstration; the same pair normally has a ten-minute cooldown. To try refusal instead, choose **Pass on this quest** or **Partner passes**. Neither awards completion credit. An active quest can be left with confirmation.
@@ -37,7 +37,7 @@ Do not open the invitation in the same browser profile if you want to retain the
 
 The interface, API requests, persistent demo storage, shared quest identity, availability checks, acceptance/completion rules, reload recovery, history and streak calculation actually execute. They are not just animated screen transitions.
 
-The demo's hardware signal, second person's optional control buttons and sample venue are simulations, explicitly labeled. Real Google/Facebook sign-in requires the provider applications and PostgreSQL. Real venue lookup uses external OpenStreetMap services; lookup timed out during local external verification, so successful retrieval is not claimed. Real Gemini generation needs a key. Physical proximity and firmware behavior need the teammate's ESP32s. Hosted verification needs NorthMark access.
+The demo's hardware signal, second person's optional control buttons and sample venue are simulations, explicitly labeled. Real Google/Facebook sign-in requires the provider applications and PostgreSQL. Real venue lookup uses external OpenStreetMap services; lookup timed out during local external verification, so successful retrieval is not claimed. Real Meta AI generation and photo checks require `META_AI_API_KEY`; the key and vision calls have been verified locally. Physical proximity and firmware behavior need the teammate's ESP32s. Hosted verification needs NorthMark access.
 
 ## Validation commands
 
@@ -49,7 +49,7 @@ npm run test:e2e
 npm run build
 ```
 
-The Playwright suite can reuse the local server on port 3000. To check an already running production instance, set `PLAYWRIGHT_BASE_URL` to its origin; the final verification used `http://localhost:3101` and all six scenarios passed. It checks two independent API identities, consent, authorization, desktop/mobile completion, reload recovery, skipping, failed-save recovery and mobile sign-out. Screenshots are written to ignored `artifacts/` files.
+The Playwright suite can reuse the local server on port 3000. To check an already running production instance, set `PLAYWRIGHT_BASE_URL` to its origin; the final verification used `http://localhost:3101` and all six scenarios passed. Add `QUESTGO_TEST_META=true` to include actual Meta rejection in the API and desktop UI checks. It checks two independent API identities, consent, authorization, desktop/mobile completion, reload recovery, skipping, failed-save recovery and mobile sign-out. Screenshots are written to ignored `artifacts/` files.
 
 For the disposable PostgreSQL verification, run `bash scripts/test-postgres.sh`. On systems where the binaries are not in the default Homebrew PostgreSQL 17 directory, set `PG_BIN_DIR` to their directory. This check starts its own local `questgo_test` database on port 55439 and stops it afterward; it does not use your live `DATABASE_URL`.
 

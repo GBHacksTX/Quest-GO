@@ -10,12 +10,18 @@ All writes pass through one transaction. SQLite uses an immediate transaction; P
 
 Availability expires after 45 seconds without a foreground browser heartbeat. Offers expire after five minutes; active sessions after 24 hours. Repeated reports for the same device pair are suppressed for ten minutes. Completion history is the source of truth for engagement; streaks count distinct UTC completion days, with yesterday preserving a current streak. No separate reward counter can be incremented twice.
 
-## Achievement photos — migration 002
+## Legacy achievement photos — migration 002
 
-`002_achievement_photos.sql` adds one private photo per `(session_id, user_id)`, with a foreign key to participation. The table stores the normalized JPEG as bounded base64 text (at most 2 MB before encoding), dimensions, a revision ID and upload timestamp. No new storage account or API key is needed. Photo metadata is loaded with session state; image bytes are loaded only by the private image endpoint, not by ordinary polling.
+`002_achievement_photos.sql` adds one private photo per `(session_id, user_id)`, with a foreign key to participation. The table stores the normalized JPEG as bounded base64 text (at most 2 MB before encoding), dimensions, a revision ID and upload timestamp. Storing a photo needs no new storage account; checking new evidence uses `META_AI_API_KEY`. Photo metadata is loaded with session state; image bytes are loaded only by the private image endpoint, not by ordinary polling.
 
-Saving a photo and its participant metadata is transactional. Only the uploader can replace their photo, and only while the activity is active and their completion is unconfirmed. Actual image decoding, format checks and re-encoding happen before the transaction. Original file names and EXIF/GPS metadata are not stored.
+New submissions use migration 003 below; this legacy table remains readable and is no longer overwritten by new uploads. Saving a photo and its participant metadata is transactional. Only the uploader can replace their photo, and only while the activity is active and their completion is unconfirmed. Actual image decoding, format checks and re-encoding happen before the transaction. Original file names and EXIF/GPS metadata are not stored.
 
 Migrations now run in version order and are recorded so they are not repeated. Demo databases upgrade automatically; run `npm run db:migrate` for live PostgreSQL before launching the new application. Existing completed history and streaks are preserved. Migration 002 clears confirmations on unfinished active sessions once, so those participants can add photos and confirm again under the new requirement. Back up live data before applying migrations.
 
 Both PostgreSQL and demo SQLite store the photo bytes alongside session data. This is an intentional small-MVP storage choice; photos are not written to a public filesystem folder. Database backups include photos. Any future move to object storage should preserve these access rules and migrate existing records intentionally.
+
+## Isolated application schema and additive validation tables
+
+QuestGo now uses the PostgreSQL schema `questgo_app`, with an explicit connection search path that excludes public datasets. Migration 003 creates `questgo_photo_submissions`, `questgo_photo_validations`, and `questgo_achievements`. These are new tables; migration 003 does not update, delete or replace existing records. Each submitted image and each validation attempt is retained as a new record. A submission snapshots its quest’s photo criteria. Pending and final validation events use increasing ordinals; completion requires the latest submission’s approval. Meta requests run outside database transactions. Existing legacy photo rows remain readable. Completed achievement evidence is inserted once per session.
+
+The schema is intentionally separate from similarly named tables in `public`. Existing deployments that used public QuestGo tables are not silently copied or overwritten; any migration of those records must be an explicit later action. Local PostgreSQL verification includes an existing `public.app_users` record and checks that it remains unchanged.

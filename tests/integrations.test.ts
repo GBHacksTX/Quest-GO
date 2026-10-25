@@ -58,24 +58,20 @@ test("free budgets exclude paid venue categories and lookup failure returns a fr
   );
 });
 test("malformed AI output cannot replace trusted venue identity", async () => {
-  const previous = process.env.GEMINI_API_KEY;
-  process.env.GEMINI_API_KEY = "test-only-placeholder";
+  const previous = process.env.META_AI_API_KEY;
+  process.env.META_AI_API_KEY = "test-only-placeholder";
   try {
     const fetcher: typeof fetch = async (url) =>
-      String(url).includes("generativelanguage")
+      String(url).includes("chat/completions")
         ? Response.json({
-            candidates: [
+            choices: [
               {
-                content: {
-                  parts: [
-                    {
-                      text: JSON.stringify({
-                        title: "Invented venue",
-                        minutes: 9999,
-                        venue: { name: "Wrong place" },
-                      }),
-                    },
-                  ],
+                message: {
+                  content: JSON.stringify({
+                    title: "Invented venue",
+                    minutes: 9999,
+                    venue: { name: "Wrong place" },
+                  }),
                 },
               },
             ],
@@ -95,8 +91,8 @@ test("malformed AI output cannot replace trusted venue identity", async () => {
     assert.equal(quest.venue!.name, "Trusted fixture");
     assert.ok(quest.minutes <= preferences.minutes);
   } finally {
-    if (previous === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = previous;
+    if (previous === undefined) delete process.env.META_AI_API_KEY;
+    else process.env.META_AI_API_KEY = previous;
   }
 });
 test("hardware credentials are bound to a registered sender", () => {

@@ -14,6 +14,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { photoCriteria } from "@/lib/photo-criteria";
 import type { AppView } from "@/lib/model";
 import { AchievementGallery, AchievementUpload } from "./achievement-photos";
 
@@ -195,6 +196,18 @@ export function SessionPanel({
               ))}
             </ol>
           </div>
+          <div className="quest-photo-plan">
+            <h3>What your achievement photos need to show</h3>
+            <p>
+              Each person submits their own photo. Include both people’s hands
+              if you prefer to keep faces out.
+            </p>
+            <ul>
+              {photoCriteria(quest).map((criterion) => (
+                <li key={criterion}>{criterion}</li>
+              ))}
+            </ul>
+          </div>
           {quest.source === "osm" && (
             <p className="source-note">
               Place data ©{" "}
@@ -261,6 +274,17 @@ export function SessionPanel({
             <a href="#quest-details" className="text-action">
               See the activity & venue details <ArrowRight size={12} />
             </a>
+            {session.status === "offer" && (
+              <details className="quest-photo-plan">
+                <summary>Photo requirements before you accept</summary>
+                <ul>
+                  {photoCriteria(quest).map((criterion) => (
+                    <li key={criterion}>{criterion}</li>
+                  ))}
+                </ul>
+                <p>Each person uploads their own photo after the activity.</p>
+              </details>
+            )}
           </div>
           <span className="section-kicker">
             {session.status === "offer" ? "A SHARED YES" : "MAKE IT A MEMORY"}
@@ -301,7 +325,9 @@ export function SessionPanel({
                       : person.completed
                         ? "Completion confirmed"
                         : person.photo
-                          ? "Photo saved · ready to confirm"
+                          ? person.photo.validation?.status === "approved"
+                            ? "Photo approved · ready to confirm"
+                            : "Photo check needed"
                           : "Achievement photo needed"}
                   </small>
                 </div>
@@ -368,7 +394,11 @@ export function SessionPanel({
               />
               <button
                 className="app-button primary wide"
-                disabled={busy || self.completed || !self.photo}
+                disabled={
+                  busy ||
+                  self.completed ||
+                  self.photo?.validation?.status !== "approved"
+                }
                 onClick={() => void action("complete")}
               >
                 {self.completed ? (
@@ -381,9 +411,9 @@ export function SessionPanel({
                   </>
                 )}
               </button>
-              {!self.photo && (
+              {self.photo?.validation?.status !== "approved" && (
                 <p className="field-note">
-                  Add and save your own photo to unlock confirmation.
+                  Your own photo must pass its check to unlock confirmation.
                 </p>
               )}
               <button

@@ -87,11 +87,13 @@ export function QuestApp() {
     setError("");
     try {
       const response = await fetch(
-        command.action === "retryVenue"
-          ? "/api/quests/retry"
-          : command.action === "demoPhoto"
-            ? "/api/demo/photos"
-            : "/api/app",
+        command.action === "retryPhoto"
+          ? `/api/quests/${command.sessionId}/photos/validate`
+          : command.action === "retryVenue"
+            ? "/api/quests/retry"
+            : command.action === "demoPhoto"
+              ? "/api/demo/photos"
+              : "/api/app",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
