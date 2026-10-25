@@ -131,26 +131,33 @@ test("push registration rejects cross-origin writes and private network destinat
   ).toBe(400);
 });
 
-test("sound can be enabled, replayed and muted while the database is unavailable", async ({
+test("page sound arms itself, unlocks on first interaction and remembers mute", async ({
   page,
 }) => {
   await page.route("**/api/notifications", (route) =>
     route.fulfill({ status: 503, json: { enabled: true, unavailable: true } }),
   );
   await page.goto("/explore");
+  // Sound is wanted by default; any click on the page unlocks it.
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+  await expect(
+    page.getByText("Page sound is on", { exact: false }),
+  ).toBeVisible();
   await page
-    .getByRole("button", { name: "Enable & test sound", exact: true })
+    .getByRole("button", { name: "Play test sound", exact: true })
     .click();
   await expect(
     page.getByText("Test chime played.", { exact: false }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Play test sound", exact: true })
-    .click();
-  await page
     .getByRole("button", { name: "Mute page sound", exact: true })
     .click();
+  await page.reload();
+  await expect(page.getByText("Page sound is off.")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Turn on page sound", exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: "Enable & test sound", exact: true }),
+    page.getByText("Page sound is on", { exact: false }),
   ).toBeVisible();
 });
