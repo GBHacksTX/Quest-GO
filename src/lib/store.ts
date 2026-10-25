@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { Pool, type PoolClient } from "pg";
+import { Pool } from "pg";
 import { emptyState, type State, type QuestSession } from "./model";
 
 type Row = Record<string, unknown>;
@@ -10,9 +10,15 @@ const globals = globalThis as typeof globalThis & {
   questgoQueue?: Promise<unknown>;
   questgoDemoDb?: DatabaseSync;
   questgoPool?: Pool;
+  questgoDemoVersion?: number;
 };
-const migration = () =>
-  readFileSync(path.join(process.cwd(), "migrations/001_core.sql"), "utf8");
+const migrations = readdirSync(path.join(process.cwd(), "migrations"))
+  .filter((file) => /^\d+_.*\.sql$/.test(file))
+  .sort()
+  .map((file) => ({
+    version: Number(file.split("_")[0]),
+    sql: readFileSync(path.join(process.cwd(), "migrations", file), "utf8"),
+  }));
 export const liveStorageReady = () => !!process.env.DATABASE_URL;
 
 async function load(query: Query): Promise<State> {
@@ -28,16 +34,35 @@ async function load(query: Query): Promise<State> {
     (state[key] as unknown[]) = rows.map((row) => JSON.parse(String(row.data)));
   }
   const participants = await query("SELECT * FROM participants");
+  const photos = await query(
+    "SELECT id, session_id, user_id, width, height, size_bytes, uploaded_at FROM achievement_photos",
+  );
   for (const session of state.sessions)
     session.participants = participants
       .filter((row) => row.session_id === session.id)
-      .map((row) => ({
-        userId: String(row.user_id),
-        acceptedAt:
-          row.accepted_at == null ? undefined : Number(row.accepted_at),
-        completedAt:
-          row.completed_at == null ? undefined : Number(row.completed_at),
-      }));
+      .map((row) => {
+        const photo = photos.find(
+          (entry) =>
+            entry.session_id === row.session_id &&
+            entry.user_id === row.user_id,
+        );
+        return {
+          userId: String(row.user_id),
+          acceptedAt:
+            row.accepted_at == null ? undefined : Number(row.accepted_at),
+          completedAt:
+            row.completed_at == null ? undefined : Number(row.completed_at),
+          photo: photo
+            ? {
+                id: String(photo.id),
+                uploadedAt: Number(photo.uploaded_at),
+                width: Number(photo.width),
+                height: Number(photo.height),
+                size: Number(photo.size_bytes),
+              }
+            : undefined,
+        };
+      });
   return state;
 }
 async function save(query: Query, state: State) {
@@ -90,15 +115,7 @@ async function save(query: Query, state: State) {
       );
   }
 }
-export async function migrate(client?: PoolClient) {
-  if (client) {
-    await client.query(migration());
-    await client.query(
-      "INSERT INTO schema_migrations(version,applied_at) VALUES(1,$1) ON CONFLICT(version) DO NOTHING",
-      [new Date().toISOString()],
-    );
-    return;
-  }
+export async function migrate() {
   if (!process.env.DATABASE_URL)
     throw new Error("Set DATABASE_URL before running live migrations.");
   const pool = new Pool({
@@ -106,19 +123,38 @@ export async function migrate(client?: PoolClient) {
     connectionTimeoutMillis: 8000,
     query_timeout: 10_000,
   });
+  const client = await pool.connect();
   try {
-    await pool.query(migration());
-    await pool.query(
-      "INSERT INTO schema_migrations(version,applied_at) VALUES(1,$1) ON CONFLICT(version) DO NOTHING",
-      [new Date().toISOString()],
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(7823472)");
+    await client.query(
+      "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
     );
+    const applied = new Set(
+      (await client.query("SELECT version FROM schema_migrations")).rows.map(
+        (row) => Number(row.version),
+      ),
+    );
+    for (const migration of migrations) {
+      if (applied.has(migration.version)) continue;
+      await client.query(migration.sql);
+      await client.query(
+        "INSERT INTO schema_migrations(version,applied_at) VALUES($1,$2)",
+        [migration.version, new Date().toISOString()],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
   } finally {
+    client.release();
     await pool.end();
   }
 }
 export async function transact<T>(
   demo: boolean,
-  operation: (state: State) => T | Promise<T>,
+  operation: (state: State, query: Query) => T | Promise<T>,
 ): Promise<T> {
   const run = async () => {
     if (demo) {
@@ -130,10 +166,35 @@ export async function transact<T>(
         db.exec(
           "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;",
         );
-        db.exec(migration());
         globals.questgoDemoDb = db;
       }
       const db = globals.questgoDemoDb;
+      if (globals.questgoDemoVersion !== migrations.length) {
+        db.exec("BEGIN IMMEDIATE");
+        try {
+          db.exec(
+            "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
+          );
+          const applied = new Set(
+            db
+              .prepare("SELECT version FROM schema_migrations")
+              .all()
+              .map((row) => Number(row.version)),
+          );
+          for (const migration of migrations) {
+            if (applied.has(migration.version)) continue;
+            db.exec(migration.sql);
+            db.prepare(
+              "INSERT INTO schema_migrations(version,applied_at) VALUES(?,?)",
+            ).run(migration.version, new Date().toISOString());
+          }
+          db.exec("COMMIT");
+          globals.questgoDemoVersion = migrations.length;
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      }
       const query: Query = async (sql, args = []) => {
         const ordered: unknown[] = [];
         const sqliteSql = sql.replace(/\$(\d+)/g, (_, index) => {
@@ -151,7 +212,7 @@ export async function transact<T>(
       db.exec("BEGIN IMMEDIATE");
       try {
         const state = await load(query);
-        const result = await operation(state);
+        const result = await operation(state, query);
         await save(query, state);
         db.exec("COMMIT");
         return result;
@@ -177,7 +238,7 @@ export async function transact<T>(
       const query: Query = async (sql, args = []) =>
         (await client.query(sql, args)).rows;
       const state = await load(query);
-      const result = await operation(state);
+      const result = await operation(state, query);
       await save(query, state);
       await client.query("COMMIT");
       return result;

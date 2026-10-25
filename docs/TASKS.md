@@ -112,3 +112,11 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 - NorthMark target access, HTTPS and a hosted end-to-end check.
 
 Complete independent implementation and testing while these are unavailable. Report each unverified connection explicitly instead of marking the entire system externally verified.
+
+## Photo achievements and streak requirements
+
+**Branch:** `feat/achievement-photos`.
+
+**Work:** Require a separate saved image for each participant before their confirmation. Offer camera/file selection, preview, upload/retry and private viewing. Display both photos in completed results and Your stories. Keep the existing streak rule, with credit only after both images and confirmations; repeated requests must not duplicate credit.
+
+**Status:** Implemented, including versioned migration 002, bounded image validation, metadata removal, authorization and own-photo locking. Fourteen domain/integration/storage tests, TypeScript, the production build, all six API/browser scenarios against the updated production server, and the updated PostgreSQL verification pass. Upload failure/retry, private viewing, reload persistence and both-photo streak gating are verified. Photo storage uses the existing databases and needs no new credentials. External integration blockers remain unchanged.

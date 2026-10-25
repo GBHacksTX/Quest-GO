@@ -50,10 +50,18 @@ export type Encounter = {
   userIds: string[];
   detectedAt: number;
 };
+export type AchievementPhoto = {
+  id: string;
+  uploadedAt: number;
+  width: number;
+  height: number;
+  size: number;
+};
 export type Participant = {
   userId: string;
   acceptedAt?: number;
   completedAt?: number;
+  photo?: AchievementPhoto;
 };
 export type QuestSession = {
   id: string;
@@ -85,7 +93,13 @@ export const emptyState = (): State => ({
 });
 export type SessionView = QuestSession & {
   quest: Quest;
-  people: { id: string; name: string; accepted: boolean; completed: boolean }[];
+  people: {
+    id: string;
+    name: string;
+    accepted: boolean;
+    completed: boolean;
+    photo?: AchievementPhoto;
+  }[];
 };
 export type AppView = {
   user: User;

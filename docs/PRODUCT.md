@@ -2,7 +2,7 @@
 
 ## Current implementation
 
-The landing page leads to `/explore`, the working application. It includes Google/Facebook sign-in entry points, preferences and location entry, private device pairing, opt-in availability, a shared quest offer, independent acceptance, active activity, mutual completion, cancellation, expiry, history and UTC streaks. Live sign-in is shown as unavailable until provider and database configuration are present.
+The landing page leads to `/explore`, the working application. It includes Google/Facebook sign-in entry points, preferences and location entry, private device pairing, opt-in availability, a shared quest offer, independent acceptance, active activity, separate achievement photos, mutual completion, cancellation, expiry, photo achievements and UTC streaks. Live sign-in is shown as unavailable until provider and database configuration are present.
 
 An explicit demo creates a separate persistent room with a sample partner and device. Users can run the complete journey, simulate the partner's choices, or share a second-identity link with another browser profile. Demo devices, encounters and venue suggestions are labeled. Reloading preserves saved progress. No real hardware or OAuth integration is claimed verified by a successful demo.
 
@@ -68,15 +68,17 @@ Paid activities mean an external venue may charge money. Proposed boundary: Ques
 
 Provide a way to leave an activity. Proposed behavior: leaving ends it without completion credit and informs the other person. Agree on cancellation and abandonment rules before implementing them.
 
-### 8. Confirm completion together
+### 8. Save photos and confirm completion together
 
-Each person confirms their own completion. The first sees that confirmation is waiting for the partner. Only both confirmations produce a successful completion. Do not claim the activity is physically verified beyond these mutual confirmations.
+Each participant takes a photo or selects a JPEG, PNG or WebP image, previews it, and explicitly saves it. A photo of the activity, place or result is enough; faces are optional. Uploads are limited to 10 MB and 40 megapixels, then resized to at most 1600 pixels and saved as JPEG with metadata removed.
 
-If someone never confirms, do not award completion automatically or lock the other person out indefinitely. Define an expiry and return-to-home path before implementation.
+Each person must save their own photo before confirming their part. A failed upload retains the selected image for retry and does not unlock confirmation. Before confirming, they can replace their own photo. After confirming, that photo is locked. Only participants can view either photo; there are no public image links.
+
+The first confirmation waits for the other person. The session completes and earns streak credit only after both photos and both confirmations are saved. Photos are a shared record plus mutual confirmation, not automated proof that an activity physically happened. If someone never finishes, the existing expiration/leave paths apply without completion credit.
 
 ### 9. See the result and return home
 
-Show the completed activity in history and the result under the agreed streak rule. Apply credit once, even after retries or reloads. The person explicitly chooses whether to become available again rather than being placed into another encounter immediately.
+Show the completed achievement, both photos, activity title and completion date in Your stories, together with the result under the agreed streak rule. Apply credit once, even after retries or reloads. The person explicitly chooses whether to become available again rather than being placed into another encounter immediately.
 
 ## States every screen needs
 
@@ -88,7 +90,7 @@ Availability is explicit and expires after 45 seconds without a foreground brows
 
 Use the lower time and budget limits. If either person chooses Work mode, the shared activity uses Work mode and lasts at most 15 minutes. Combine interests as suggestion context. Place radius is bounded by available time and capped at 1.2 km; walking time is an estimate, not a routing guarantee. Unknown venue prices remain variable, with both people told to check the venue and respect their agreed spending limit.
 
-Offers expire after five minutes; active quests after 24 hours. Before activation, either person can pass or withdraw acceptance. After activation, either can leave without completion credit. An ended quest can be dismissed; the person remains paused until choosing availability again. The same pair has a ten-minute encounter cooldown. Completed sessions count once toward history and once per distinct UTC calendar day toward streaks.
+Offers expire after five minutes; active quests after 24 hours. Before activation, either person can pass or withdraw acceptance. After activation, either can leave without completion credit. An ended quest can be dismissed; the person remains paused until choosing availability again. The same pair has a ten-minute encounter cooldown. A completed achievement requires a photo and confirmation from every participant. Completed sessions count once toward history and once per distinct UTC calendar day toward streaks.
 
 Nearby places come from OpenStreetMap with source and directions links. Gemini optionally writes the activity text. A missing provider, invalid response or timeout uses a free activity with a visible fallback explanation. A live offer can retry nearby lookup only before either person accepts.
 

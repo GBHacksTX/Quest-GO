@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import sharp from "sharp";
 
 for (const viewport of [
   { name: "desktop", width: 1440, height: 1100 },
@@ -66,6 +67,48 @@ for (const viewport of [
     await expect(
       page.getByText("Your quest is underway.", { exact: true }),
     ).toBeVisible();
+    const confirm = page.getByRole("button", {
+      name: "We did it — confirm my part",
+    });
+    await expect(confirm).toBeDisabled();
+    const photo = await sharp({
+      create: { width: 640, height: 480, channels: 3, background: "#8a9d72" },
+    })
+      .png()
+      .toBuffer();
+    await page
+      .getByLabel("Choose achievement photo", { exact: true })
+      .setInputFiles({
+        name: "our-adventure.png",
+        mimeType: "image/png",
+        buffer: photo,
+      });
+    if (viewport.name === "desktop") {
+      await page.route(
+        "**/api/quests/*/photos",
+        (route) =>
+          route.fulfill({
+            status: 503,
+            json: {
+              error: "Photo service unavailable. Your photo was not saved.",
+            },
+          }),
+        { times: 1 },
+      );
+      await page
+        .getByRole("button", { name: "Save my achievement photo" })
+        .click();
+      await expect(
+        page.getByRole("alert").filter({ hasText: "Your photo was not saved" }),
+      ).toBeVisible();
+      await expect(confirm).toBeDisabled();
+    }
+    await page
+      .getByRole("button", { name: "Save my achievement photo" })
+      .click();
+    await expect(confirm).toBeEnabled();
+    await page.reload();
+    await expect(confirm).toBeEnabled();
     await page
       .getByRole("button", { name: "We did it — confirm my part" })
       .click();
@@ -73,11 +116,17 @@ for (const viewport of [
       page.getByText("Your part is confirmed.", { exact: true }),
     ).toBeVisible();
     await page
+      .getByRole("button", { name: "Partner adds a sample photo" })
+      .click();
+    await page
       .getByRole("button", { name: "Partner confirms completion" })
       .click();
     await expect(
       page.getByRole("heading", { name: "A little closer, together." }),
     ).toBeVisible();
+    await expect(
+      page.locator(".result-panel .achievement-gallery img"),
+    ).toHaveCount(2);
     await page.screenshot({
       path: `artifacts/${viewport.name}-completed.png`,
       fullPage: true,
@@ -89,6 +138,10 @@ for (const viewport of [
     await expect(
       page.getByRole("heading", { name: "1 story, and counting." }),
     ).toBeVisible();
+    await page.locator(".history-entry summary").click();
+    await expect(
+      page.locator(".history-entry .achievement-gallery img"),
+    ).toHaveCount(2);
     await page.reload();
     expect(
       await page.evaluate(

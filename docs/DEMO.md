@@ -21,8 +21,8 @@ Open [QuestGo](http://localhost:3000/explore). No API keys, database account or 
 5. Choose **Simulate a nearby encounter**. Both sample participants now share one saved quest. The sample venue is illustrative.
 6. Choose **I’m in**. The offer stays waiting until the partner accepts. Reload to see that your choice is saved.
 7. In the labeled demo controls, choose **Partner accepts**. The quest becomes active.
-8. Choose **We did it — confirm my part**. You are still waiting for the partner's confirmation.
-9. Choose **Partner confirms completion**. The result screen shows verified mutual completion, history and the day's streak credit.
+8. Choose or take a photo, inspect its preview, and choose **Save my achievement photo**. The demo also offers an explicitly labeled sample image. Then choose **We did it — confirm my part**. You are still waiting for the partner's confirmation.
+9. Choose **Partner adds a sample photo**, then **Partner confirms completion**. The result screen shows verified mutual completion, both achievement photos, history and the day's streak credit.
 10. Return to exploring, then open **Your stories**. You remain paused until choosing availability again.
 
 Use **Start fresh** for another immediate demonstration; the same pair normally has a ten-minute cooldown. To try refusal instead, choose **Pass on this quest** or **Partner passes**. Neither awards completion credit. An active quest can be left with confirmation.
