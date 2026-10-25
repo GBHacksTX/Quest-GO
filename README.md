@@ -41,6 +41,8 @@ npm run dev
 
 Open [the application](http://localhost:3000/explore) and choose **Try the full demo**. The copy command preserves an existing `.env`.
 
+Signing in again with the same Google account restores that account's progress. To test two people, use two browser profiles or a normal and private window; ordinary tabs share authentication cookies. Google now asks you to select an account, and starting provider sign-in leaves an earlier demo session. Failed sign-ins show an error instead of silently reusing the demo.
+
 The demo creates its own persistent room with a sample device and partner. Set preferences, link the sample device, become available, and simulate an encounter. Accept for yourself, then use the labelled partner controls. Upload your photo or use the sample artwork; add the partner's sample photo and confirm both sides. See [the walkthrough](docs/DEMO.md) for the exact sequence and the invitation link for a second browser profile.
 
 No credentials or physical hardware are needed for this walkthrough. Demo photo approvals are explicitly simulated by default. With a configured Meta key, select **Use real Meta AI for this photo** to try the actual checker. Demo history stays separate from real accounts even when the real checker is used.
@@ -92,7 +94,7 @@ Deploy as a Node service behind HTTPS, apply migrations before starting the new 
 
 ## What has been verified
 
-The current feature passes TypeScript, the production build, 17 automated tests, six desktop/mobile/API scenarios, and disposable PostgreSQL checks. A real Meta vision call succeeded; an unrelated image was also rejected through the app's upload endpoint, and completion remained blocked. Browser checks cover reloads, separate identities, private photos, failed-upload recovery, mutual completion and history.
+The current feature passes TypeScript, the production build, 17 automated tests, eight desktop/mobile/API scenarios, and disposable PostgreSQL checks. A real Meta vision call succeeded; an unrelated image was also rejected through the app's upload endpoint, and completion remained blocked. Browser checks cover reloads, separate identities, private photos, failed-upload recovery, mutual completion and history.
 
 The configured remote database still times out from this environment; no changes have been applied there. Google credentials are present locally, but a real callback has not been verified. Facebook credentials are still empty in the checked local configuration. Physical ESP32 encounters, reliable live venue retrieval, and hosted HTTPS deployment still need verification. A working local demo does not establish those connections.
 
