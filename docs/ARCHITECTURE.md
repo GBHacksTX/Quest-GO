@@ -39,6 +39,16 @@ This section represents the **current implementation**, not permanent architectu
 - TypeScript
 - Tailwind CSS
 
+Step 1 implements a Next.js App Router application in `src/app`, with strict
+TypeScript and Tailwind via PostCSS. Development and builds use the bundled
+Webpack option because Turbopack worker port binding failed in the local execution
+environment. The landing page is rendered on the server;
+only the sample quest-card reveal is a client component. Illustrations and motion
+use CSS, and typography uses system fonts. The preview has no persistence or
+external service calls. See `PRODUCT.md` for current behavior and
+`INTEGRATIONS.md` for access and verification status. The remaining stack below
+is planned and is not yet integrated.
+
 ### Authentication
 - Auth.js
 - Google OAuth
