@@ -1,12 +1,12 @@
 # QuestGo product
 
-## Current implementation: step 1
+## Current implementation
 
-QuestGo opens on a mobile-friendly adventure-themed introduction. Visitors can read how encounters become shared activities, jump to a quest preview, and flip a sample quest card to reveal its instructions. The preview needs no account and does not save data, detect devices, create encounters, or start a session. Reloading resets the card.
+The landing page leads to `/explore`, the working application. It includes Google/Facebook sign-in entry points, preferences and location entry, private device pairing, opt-in availability, a shared quest offer, independent acceptance, active activity, mutual completion, cancellation, expiry, history and UTC streaks. Live sign-in is shown as unavailable until provider and database configuration are present.
 
-The sample is a free, ten-minute walk for two people. It illustrates an activity definition, not a shared session or participant progress. There are no invented streaks, live users, device detections, or acceptance states on the page.
+An explicit demo creates a separate persistent room with a sample partner and device. Users can run the complete journey, simulate the partner's choices, or share a second-identity link with another browser profile. Demo devices, encounters and venue suggestions are labeled. Reloading preserves saved progress. No real hardware or OAuth integration is claimed verified by a successful demo.
 
-Navigation works with section links. The quest card supports keyboard activation, visible focus, and screen-reader expanded state. Layout adapts to phone-sized screens. Decorative animation respects reduced-motion settings.
+The experience has loading, request-error, disconnected, empty-history and neutral ended-quest states, plus keyboard-accessible controls and reduced-motion support. Desktop and 390px-wide browser tests complete the journey and reload a waiting session. A separate passing-on-an-offer scenario verifies that no history credit is awarded.
 
 ## Confirmed product decisions
 

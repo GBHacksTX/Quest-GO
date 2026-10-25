@@ -4,7 +4,7 @@
 
 Build a reliable demo in which two people meet, receive one shared quest, both accept it, and both confirm completion. The completed activity then updates their history and streaks.
 
-The user authorized implementation and local commits on October 24, 2026; never push to origin. Step 1 is the original landing-page preview. The transactional session and persistence foundation is implemented on `feat/session-foundation`, with six passing domain/storage tests. Live PostgreSQL still requires credentials and migration verification. The full application UI and integrations are the next milestones.
+The user authorized implementation and local commits on October 24, 2026; never push to origin. Step 1 is the original landing-page preview. The transactional session and persistence foundation is implemented on `feat/session-foundation`, with six passing domain/storage tests. Live PostgreSQL still requires credentials and migration verification. The complete application UI is implemented on `feat/application-experience`; desktop/mobile lifecycle and skip-path browser checks pass. Real venue and hardware integration are the next milestone.
 
 Follow the steps in order. Each step explains the work and gives a concrete completion check. Update its status as work progresses and record any blocker beside the affected step.
 
@@ -165,3 +165,7 @@ Before changing code, inspect the current branch and preserve other contributors
 After committing the feature locally, create an `integration/<feature-name>` copy, rebase that copy onto the latest `main`, and squash merge it into `main` with a local commit. Preserve the original feature branch and its commits unchanged, including after integration. Start the next feature from the updated `main`. See [the branch workflow](AGENTS.md#feature-branch-and-integration-workflow) for the complete rules.
 
 Mark a step complete only when its completion check has passed. If credentials, equipment, or access prevent verification, record exactly what remains unverified and continue any independent work that is available.
+
+## Application experience milestone
+
+`feat/application-experience` implements the complete responsive UI, onboarding, device claim controls, availability, session acceptance/completion, demo partner controls, history, preferences and recoverable states. Three browser scenarios pass at desktop and mobile sizes. Screenshots are saved locally in ignored `artifacts/`. Google/Facebook provider verification and real venue/hardware verification remain separate from these demo checks.

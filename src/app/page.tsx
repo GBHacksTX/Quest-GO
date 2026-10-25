@@ -14,7 +14,7 @@ export default function Home() {
         <nav aria-label="Main navigation" className="flex items-center gap-7">
           <a className="nav-link" href="#how-it-works">The story</a>
           <a className="nav-link" href="#quest-preview">Quest preview</a>
-          <a className="nav-cta" href="#quest-preview">Take a peek <span aria-hidden="true">↗</span></a>
+          <a className="nav-cta" href="/explore">Open QuestGo <span aria-hidden="true">↗</span></a>
         </nav>
       </header>
 
@@ -24,7 +24,7 @@ export default function Home() {
           <h1 id="hero-title">Every hello<br />could be a<br /><em>little adventure.</em></h1>
           <p className="hero-description">Good stories start with a chance encounter. Turn yours into a real-world quest, with someone right beside you.</p>
           <div className="hero-actions flex flex-wrap items-center gap-5">
-            <a className="button button-primary" href="#quest-preview">Discover a quest <span aria-hidden="true">↗</span></a>
+            <a className="button button-primary" href="/explore">Start your next chapter <span aria-hidden="true">↗</span></a>
             <a className="text-link" href="#how-it-works">How the magic works <span aria-hidden="true">↓</span></a>
           </div>
           <div className="hero-note"><span className="little-star" aria-hidden="true">✧</span> Less scrolling. More stories worth telling.</div>
@@ -58,7 +58,7 @@ export default function Home() {
         <QuestPreview />
       </section>
 
-      <footer className="site-footer mx-auto flex flex-wrap items-center justify-between gap-4"><a className="wordmark" href="#">✳ QuestGo.</a><p>Made for the world outside your screen.</p><span>Early chapter · UI preview</span></footer>
+      <footer className="site-footer mx-auto flex flex-wrap items-center justify-between gap-4"><a className="wordmark" href="#">✳ QuestGo.</a><p>Made for the world outside your screen.</p><a href="/explore">Open QuestGo ↗</a></footer>
     </main>
   );
 }

@@ -53,7 +53,8 @@ export async function POST(request: Request) {
           if (!a || !b) throw new AppError("Connect the sample device first.");
           partner.preferences.mode = user.preferences.mode; partner.preferences.minutes = user.preferences.minutes; partner.preferences.budget = user.preferences.budget;
           setAvailable(state, partner.id, true); a.lastSeen = Date.now(); b.lastSeen = Date.now();
-          encounter(state, { eventId: randomUUID(), deviceId: a.id, nearbyDeviceId: b.id, detectedAt: Date.now() }, Date.now(), true);
+          const result = encounter(state, { eventId: randomUUID(), deviceId: a.id, nearbyDeviceId: b.id, detectedAt: Date.now() }, Date.now(), true);
+          if (result.duplicate) throw new AppError("This pair is on a ten-minute cooldown. Use Start fresh to try another demo now.", 409);
         } else {
           const session = state.sessions.find((entry) => entry.id === input.sessionId && entry.participants.some((person) => person.userId === user.id));
           if (!session || !session.participants.some((person) => person.userId === partner.id)) throw new AppError("Demo quest not found.", 404);
