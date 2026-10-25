@@ -1,80 +1,234 @@
 import { test, expect, request as api } from "@playwright/test";
-
+import { randomUUID } from "node:crypto";
 const origin = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
-test("Google sign-in leaves an old demo and asks which account to use", async () => {
-  const client = await api.newContext({
+const password = "a private local adventure password";
+
+test("create an account, save its recovery code, sign out and restore the same account", async ({
+  page,
+}) => {
+  const email = `ui-${randomUUID()}@example.com`;
+  await page.goto("/explore");
+  await expect(page.getByText("Continue with Google")).toHaveCount(0);
+  await expect(page.getByText("Continue with Facebook")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Create account", exact: true })
+    .click();
+  await page.getByLabel("Your name", { exact: true }).fill("Rowan");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Create my account" }).click();
+  await expect(page.getByLabel("Recovery code", { exact: true })).toHaveValue(
+    /^[A-Za-z0-9_-]{43}$/,
+  );
+  await page.getByLabel("I saved my recovery code").check();
+  await page.getByRole("button", { name: "Continue to QuestGo" }).click();
+  await expect(page.getByLabel("What should we call you?")).toHaveValue(
+    "Rowan",
+  );
+  const before = await (await page.request.get("/api/app")).json();
+  expect(before.demo).toBe(false);
+  await page.reload();
+  await expect(page.getByLabel("What should we call you?")).toHaveValue(
+    "Rowan",
+  );
+  await page
+    .getByRole("button", { name: "Sign out", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Sign in to QuestGo" }),
+  ).toBeVisible();
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill("wrong password");
+  await page.getByRole("button", { name: "Sign in to QuestGo" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Email or password is incorrect" }),
+  ).toBeVisible();
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in to QuestGo" }).click();
+  await expect(page.getByLabel("What should we call you?")).toHaveValue(
+    "Rowan",
+  );
+  expect((await (await page.request.get("/api/app")).json()).user.id).toBe(
+    before.user.id,
+  );
+});
+
+test("cookie sessions isolate users, leave demos, revoke on logout and rotate recovery codes", async () => {
+  const a = await api.newContext({
     baseURL: origin,
     extraHTTPHeaders: { origin },
   });
+  const b = await api.newContext({
+    baseURL: origin,
+    extraHTTPHeaders: { origin },
+  });
+  const replay = await api.newContext({
+    baseURL: origin,
+    extraHTTPHeaders: { origin },
+  });
+  const emailA = `a-${randomUUID()}@example.com`,
+    emailB = `b-${randomUUID()}@example.com`;
   try {
-    const config = await (await client.get("/api/config")).json();
-    test.skip(
-      !config.google,
-      "Google credentials are not configured on this instance",
-    );
-    expect(
-      (await client.post("/api/demo", { data: { action: "start" } })).ok(),
-    ).toBeTruthy();
-    const previous = await (await client.get("/api/app")).json();
-    expect(previous.demo).toBe(true);
-    const { csrfToken } = await (await client.get("/api/auth/csrf")).json();
-    const response = await client.post("/api/auth/signin/google", {
-      form: { csrfToken, callbackUrl: `${origin}/explore` },
-      headers: { "X-Auth-Return-Redirect": "1" },
+    const config = await (await a.get("/api/config")).json();
+    expect(config.passwordAccounts).toBe(true);
+    expect(config.google).toBeUndefined();
+    expect(config.facebook).toBeUndefined();
+    expect((await a.get("/api/auth/signin/google")).status()).toBe(404);
+    const createdA = await a.post("/api/account", {
+      data: {
+        action: "register",
+        email: emailA,
+        password,
+        displayName: "Alex",
+      },
     });
-    expect(response.ok()).toBeTruthy();
-    const destination = new URL((await response.json()).url);
-    expect(destination.hostname).toBe("accounts.google.com");
-    expect(destination.searchParams.get("prompt")).toBe("select_account");
-    expect(destination.searchParams.get("redirect_uri")).toBe(
-      `${origin}/api/auth/callback/google`,
+    const createdB = await b.post("/api/account", {
+      data: {
+        action: "register",
+        email: emailB,
+        password,
+        displayName: "Blair",
+      },
+    });
+    expect(createdA.status()).toBe(201);
+    expect(createdB.status()).toBe(201);
+    const codeB = (await createdB.json()).recoveryCode;
+    expect(
+      (
+        await a.post("/api/account", {
+          data: {
+            action: "register",
+            email: emailA.toUpperCase(),
+            password,
+            displayName: "Wrong",
+          },
+        })
+      ).status(),
+    ).toBe(409);
+    await a.post("/api/demo", { data: { action: "start" } });
+    expect(
+      (
+        await a.post("/api/account", {
+          data: { action: "login", email: emailA, password: "wrong" },
+        })
+      ).status(),
+    ).toBe(401);
+    expect((await a.get("/api/app")).status()).toBe(401);
+    for (const [client, email] of [
+      [a, emailA],
+      [b, emailB],
+    ] as const)
+      expect(
+        (
+          await client.post("/api/account", {
+            data: { action: "login", email, password },
+          })
+        ).ok(),
+      ).toBeTruthy();
+    const viewA = await (await a.get("/api/app")).json(),
+      viewB = await (await b.get("/api/app")).json();
+    expect(viewA.user.id).not.toBe(viewB.user.id);
+    expect(viewA.demo).toBe(false);
+    expect(viewB.demo).toBe(false);
+    expect(JSON.stringify(viewA)).not.toContain(password);
+    expect(JSON.stringify(viewA)).not.toContain("password_hash");
+    const cookies = (await a.storageState()).cookies;
+    const session = cookies.find((c) => c.name === "questgo-session")!;
+    expect(session.httpOnly).toBe(true);
+    expect(session.sameSite).toBe("Lax");
+    const replayHeaders = { cookie: `${session.name}=${session.value}` };
+    expect(
+      (await replay.get("/api/app", { headers: replayHeaders })).ok(),
+    ).toBeTruthy();
+    await a.post("/api/account", { data: { action: "logout" } });
+    expect((await a.get("/api/app")).status()).toBe(401);
+    expect(
+      (await replay.get("/api/app", { headers: replayHeaders })).status(),
+    ).toBe(401);
+    const reset = await a.post("/api/account", {
+      data: {
+        action: "recover",
+        email: emailB,
+        password: password + " updated",
+        recoveryCode: codeB,
+      },
+    });
+    expect(reset.ok()).toBeTruthy();
+    expect((await reset.json()).recoveryCode).not.toBe(codeB);
+    expect((await b.get("/api/app")).status()).toBe(401);
+    expect(
+      (
+        await b.post("/api/account", {
+          data: { action: "login", email: emailB, password },
+        })
+      ).status(),
+    ).toBe(401);
+    expect(
+      (
+        await b.post("/api/account", {
+          data: {
+            action: "login",
+            email: emailB,
+            password: password + " updated",
+          },
+        })
+      ).ok(),
+    ).toBeTruthy();
+    expect((await (await b.get("/api/app")).json()).user.id).toBe(
+      viewB.user.id,
     );
     expect(
-      (await client.storageState()).cookies.some(
-        (cookie) => cookie.name === "questgo-demo",
-      ),
-    ).toBe(false);
-    // Before Google completes, there is no real identity. Never reuse the old demo.
-    expect((await client.get("/api/app")).status()).toBe(401);
-    // Switching sign-in methods leaves the saved room available through its explicit invite.
-    await client.get(`/demo/join/${previous.demoRoom}`, { maxRedirects: 0 });
-    const partner = await (await client.get("/api/app")).json();
-    expect(partner.demoRoom).toBe(previous.demoRoom);
-    expect(partner.user.id).not.toBe(previous.user.id);
+      (
+        await a.post("/api/account", {
+          data: {
+            action: "recover",
+            email: emailB,
+            password,
+            recoveryCode: codeB,
+          },
+        })
+      ).status(),
+    ).toBe(401);
+    expect(
+      (
+        await a.post("/api/account", {
+          headers: { origin: "https://other.example" },
+          data: {
+            action: "register",
+            email: `bad-${randomUUID()}@example.com`,
+            password,
+            displayName: "Bad",
+          },
+        })
+      ).status(),
+    ).toBe(403);
   } finally {
-    await client.dispose();
+    await a.dispose();
+    await b.dispose();
+    await replay.dispose();
   }
 });
 
-test("an OAuth error displays sign-in failure instead of a saved demo", async ({
+test("phone users can open ordinary sign-in and password recovery", async ({
   page,
 }) => {
-  const started = await page.request.post("/api/demo", {
-    headers: { origin },
-    data: { action: "start" },
-  });
-  expect(started.ok()).toBeTruthy();
-  const { csrfToken } = await (await page.request.get("/api/auth/csrf")).json();
-  const config = await (await page.request.get("/api/config")).json();
-  test.skip(
-    !config.google,
-    "Google credentials are not configured on this instance",
-  );
-  await page.request.post("/api/auth/signin/google", {
-    headers: { origin, "X-Auth-Return-Redirect": "1" },
-    form: { csrfToken, callbackUrl: `${origin}/explore` },
-  });
-  const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/explore?error=AccessDenied");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/explore");
+  await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Forgot your password?" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Sign-in didn’t finish" }),
+    page.getByLabel("Saved recovery code", { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Continue with Google" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("You’re exploring the demo.", { exact: false }),
-  ).toHaveCount(0);
-  expect(errors).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "artifacts/mobile-password-login.png",
+    fullPage: true,
+  });
 });

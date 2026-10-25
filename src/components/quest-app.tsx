@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { signIn, signOut } from "next-auth/react";
+import { AccountForm } from "./account-form";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -28,19 +28,17 @@ import { SessionPanel } from "./session-panel";
 import { AchievementGallery } from "./achievement-photos";
 
 type Tab = "home" | "history" | "device" | "preferences";
-type Config = { google: boolean; facebook: boolean; demoEnabled: boolean };
+type Config = { passwordAccounts: boolean; demoEnabled: boolean };
 export function QuestApp() {
   const epoch = useRef(0);
   const [data, setData] = useState<AppView | null>(null);
   const [config, setConfig] = useState<Config>({
-    google: false,
-    facebook: false,
+    passwordAccounts: false,
     demoEnabled: false,
   });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [oauthError, setOauthError] = useState(false);
   const [connected, setConnected] = useState(true);
   const [tab, setTab] = useState<Tab>("home");
   const [code, setCode] = useState("");
@@ -64,7 +62,6 @@ export function QuestApp() {
     }
   }, []);
   useEffect(() => {
-    setOauthError(new URLSearchParams(window.location.search).has("error"));
     void fetch("/api/config")
       .then((response) => response.json())
       .then(setConfig)
@@ -144,6 +141,22 @@ export function QuestApp() {
       setBusy(false);
     }
   }
+  async function logout() {
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+      if (!response.ok) throw new Error("Couldn’t sign out. Please try again.");
+      window.location.assign("/explore");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Couldn’t sign out.");
+      setBusy(false);
+    }
+  }
   const available =
     !!data?.user.availableUntil && data.user.availableUntil > Date.now();
   const navigate = (next: Tab) => {
@@ -203,34 +216,7 @@ export function QuestApp() {
                 {error}
               </div>
             )}
-            {oauthError && (
-              <div className="app-error" role="alert">
-                Sign-in didn’t finish. Try again or explore the demo.
-              </div>
-            )}
-            <button
-              className="app-button oauth-button"
-              disabled={!config.google || busy}
-              onClick={() => void signIn("google", { redirectTo: "/explore" })}
-            >
-              <span className="oauth-letter">G</span> Continue with Google{" "}
-              <ChevronRight size={16} />
-            </button>
-            <button
-              className="app-button oauth-button"
-              disabled={!config.facebook || busy}
-              onClick={() =>
-                void signIn("facebook", { redirectTo: "/explore" })
-              }
-            >
-              <span className="oauth-letter facebook-letter">f</span> Continue
-              with Facebook <ChevronRight size={16} />
-            </button>
-            {!config.google && !config.facebook && (
-              <small className="field-note">
-                Live sign-in isn’t available on this instance yet.
-              </small>
-            )}
+            <AccountForm enabled={config.passwordAccounts} />
             {config.demoEnabled && (
               <>
                 <div className="entry-divider">
@@ -320,11 +306,7 @@ export function QuestApp() {
         <button
           className="sidebar-logout"
           disabled={busy}
-          onClick={() =>
-            data.demo
-              ? void demo("logout")
-              : void signOut({ redirectTo: "/explore" })
-          }
+          onClick={() => (data.demo ? void demo("logout") : void logout())}
         >
           <LogOut size={16} /> {data.demo ? "Leave demo" : "Sign out"}
         </button>
@@ -348,9 +330,7 @@ export function QuestApp() {
                 <button
                   disabled={busy}
                   onClick={() =>
-                    data.demo
-                      ? void demo("logout")
-                      : void signOut({ redirectTo: "/explore" })
+                    data.demo ? void demo("logout") : void logout()
                   }
                 >
                   <LogOut size={14} /> {data.demo ? "Leave demo" : "Sign out"}

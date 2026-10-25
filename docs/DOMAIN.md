@@ -82,7 +82,7 @@ createdAt
 
 Authentication provider details are implementation concerns and should not define the user's identity within the domain.
 
-A user may authenticate through different providers while remaining the same conceptual QuestGo user.
+The current user signs in with an email/password account. Its login sessions and credential hashes are separate from the product profile. Email matching does not link old OAuth records automatically.
 
 ### Relationships
 

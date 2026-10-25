@@ -1,10 +1,21 @@
 # Application API
 
-Browser actions use same-origin JSON requests and a server-verified identity. Live identities use Auth.js JWT sessions with Google or Facebook OAuth. Provider accounts are mapped by provider and account ID; equal email addresses do not silently link identities. OAuth callbacks are `/api/auth/callback/google` and `/api/auth/callback/facebook` under the app's actual origin. See the official [Auth.js setup](https://authjs.dev/reference/nextjs).
+Browser actions use same-origin JSON requests and a server-verified identity. Direct email/password login sets `questgo-session`, an HTTP-only, SameSite=Lax cookie containing a random 256-bit token. The server stores its hash, expiry and revocation state. Sessions last seven days and are revoked on logout or password recovery. OAuth routes and providers have been removed.
+
+`POST /api/account` accepts one of these actions:
+
+| Action | Fields | Result |
+| --- | --- | --- |
+| `register` | `email`, `password` (12–128 characters), `displayName` | Creates a new account and returns a recovery code once. The UI asks the user to save it before login. |
+| `login` | `email`, `password` | Sets the session cookie and leaves the prior demo identity. Invalid credentials return the same 401 message for existing and unknown accounts. |
+| `logout` | none | Revokes the current server session and clears account/demo cookies. |
+| `recover` | `email`, `password` (new), `recoveryCode` | Resets the password, revokes prior sessions and returns a replacement recovery code. The old code becomes invalid. |
+
+All account responses use `Cache-Control: no-store`. Registration/recovery/login have per-client and per-email limits. Email comparison is case-insensitive; passwords are not normalized. Email delivery and verification are outside this local MVP.
 
 | Route | Purpose |
 | --- | --- |
-| `GET /api/config` | Return provider readiness and whether the isolated demo is enabled, without returning credentials. |
+| `GET /api/config` | Return password-account readiness and whether the isolated demo is enabled, without returning credentials. |
 | `GET /api/app` | Return only the current user's profile, linked devices, shared quest, completed history and streak. While available, a foreground poll refreshes a 45-second availability lease. |
 | `POST /api/app` | Submit a typed `action`: `profile`, `availability`, `claim`, `session`, or `dismiss`. Session actions are `accept`, `withdraw`, `skip`, `complete`, and `leave`. |
 | `POST /api/demo` | `{"action":"start"}` creates an isolated demo room with two sample identities; `logout` clears only the demo cookie. |
@@ -17,7 +28,7 @@ The demo uses signed, HTTP-only cookies. Its explicit `demoEncounter` and `demoP
 
 Invalid bodies, nonparticipant actions, cross-origin writes and expired sessions are rejected. Pairing attempts and demo creation are rate limited in the single application process. A saved action is acknowledged only after its database transaction commits. Unexpected service failures return a generic recoverable error without database connection details or keys.
 
-The automated API checks exercise two distinct cookie identities, shared IDs, mutual consent, completion retries, outsider rejection, missing authentication and cross-origin rejection. Real Google and Facebook login still require configured provider applications, live PostgreSQL and external verification.
+The automated API checks exercise two distinct cookie identities, shared IDs, mutual consent, completion retries, outsider rejection, missing authentication and cross-origin rejection. Real account registration, cookie login, logout, recovery and account isolation are covered by the browser/API checks.
 
 ## Achievement photo endpoints
 
