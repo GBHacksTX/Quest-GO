@@ -400,6 +400,12 @@ Future verification methods could include additional signals, but they are not r
 
 ---
 
+## Achievement photo and completed achievement
+
+Each `Participant` can attach one photo to an active `QuestSession`. It records that person's activity evidence. Before confirming completion they may replace it; after their confirmation it is locked. Photos are visible only to participants in that session.
+
+A new completion requires every participant's own photo and confirmation. The completed session is the achievement record: shared quest, participants, their photos and completion date. It appears in history and feeds the existing streak calculation. Adding photos alone does not award credit, and the app does not claim automated image verification. Previously completed sessions are preserved as historical records even if they predate photo support.
+
 # 12. Preferences
 
 `Preferences` represent information used to shape a user's QuestGo experience.

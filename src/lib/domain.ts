@@ -5,6 +5,7 @@ import {
   type Quest,
   type QuestSession,
   type AppView,
+  type AchievementPhoto,
 } from "./model";
 
 export class AppError extends Error {
@@ -302,8 +303,15 @@ export function sessionAction(
         "Both people must accept before confirming completion.",
         409,
       );
+    if (!participant.photo)
+      throw new AppError(
+        "Add your achievement photo before confirming completion.",
+        409,
+      );
     participant.completedAt ??= now;
-    if (session.participants.every((person) => person.completedAt)) {
+    if (
+      session.participants.every((person) => person.completedAt && person.photo)
+    ) {
       session.status = "completed";
       session.completedAt = now;
     }
@@ -317,6 +325,32 @@ export function sessionAction(
     session.reason =
       "This quest ended without completion credit. You can become available again.";
   }
+}
+export function attachAchievementPhoto(
+  state: State,
+  userId: string,
+  sessionId: string,
+  photo: AchievementPhoto,
+  now = Date.now(),
+) {
+  expireSessions(state, now);
+  const session = state.sessions.find(
+    (entry) =>
+      entry.id === sessionId &&
+      entry.participants.some((person) => person.userId === userId),
+  );
+  if (!session) throw new AppError("Quest not found.", 404);
+  if (session.status !== "active")
+    throw new AppError("Photos can only be added to an active quest.", 409);
+  const participant = session.participants.find(
+    (person) => person.userId === userId,
+  )!;
+  if (participant.completedAt)
+    throw new AppError(
+      "Your photo is locked because you already confirmed completion.",
+      409,
+    );
+  participant.photo = photo;
 }
 export function view(
   state: State,
@@ -339,6 +373,7 @@ export function view(
       name: getUser(state, person.userId).displayName,
       accepted: !!person.acceptedAt,
       completed: !!person.completedAt,
+      photo: person.photo,
     })),
   });
   const history = sessions

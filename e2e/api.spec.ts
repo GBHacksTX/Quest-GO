@@ -1,4 +1,5 @@
 import { test, expect, request as api } from "@playwright/test";
+import sharp from "sharp";
 
 const origin = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
 test("two independent identities share a persistent quest and cannot bypass consent", async () => {
@@ -90,6 +91,66 @@ test("two independent identities share a persistent quest and cannot bypass cons
     expect((await (await a.get("/api/app")).json()).session.status).toBe(
       "active",
     );
+    const photoPath = `/api/quests/${session.id}/photos`;
+    const photo = await sharp({
+      create: { width: 16, height: 12, channels: 3, background: "#8b9d67" },
+    })
+      .png()
+      .toBuffer();
+    const multipart = {
+      photo: { name: "achievement.png", mimeType: "image/png", buffer: photo },
+    };
+    expect(
+      (
+        await a.post("/api/app", {
+          data: {
+            action: "session",
+            sessionId: session.id,
+            operation: "complete",
+          },
+        })
+      ).status(),
+    ).toBe(409);
+    expect(
+      (
+        await a.post(photoPath, {
+          multipart: {
+            photo: {
+              name: "invalid.png",
+              mimeType: "image/png",
+              buffer: Buffer.from("not an image"),
+            },
+          },
+        })
+      ).status(),
+    ).toBe(400);
+    expect((await outsider.post(photoPath, { multipart })).status()).toBe(404);
+    expect((await a.post(photoPath, { multipart })).ok()).toBeTruthy();
+    const afterPhoto = await (await a.get("/api/app")).json();
+    const ownerId = afterPhoto.user.id;
+    expect(
+      (await b.get(`${photoPath}/${ownerId}`)).headers()["content-type"],
+    ).toBe("image/jpeg");
+    expect((await outsider.get(`${photoPath}/${ownerId}`)).status()).toBe(404);
+    await a.post("/api/app", {
+      data: { action: "session", sessionId: session.id, operation: "complete" },
+    });
+    expect((await a.post(photoPath, { multipart })).status()).toBe(409);
+    const partial = await (await b.get("/api/app")).json();
+    expect(partial.completedCount).toBe(0);
+    expect(partial.streak).toBe(0);
+    expect(
+      (
+        await b.post("/api/app", {
+          data: {
+            action: "session",
+            sessionId: session.id,
+            operation: "complete",
+          },
+        })
+      ).status(),
+    ).toBe(409);
+    expect((await b.post(photoPath, { multipart })).ok()).toBeTruthy();
     await Promise.all(
       [a, b].map((client) =>
         client.post("/api/app", {
@@ -108,6 +169,10 @@ test("two independent identities share a persistent quest and cannot bypass cons
     expect(done.session.status).toBe("completed");
     expect(done.completedCount).toBe(1);
     expect(done.streak).toBe(1);
+    expect(
+      done.session.people.every((person: { photo?: unknown }) => person.photo),
+    ).toBeTruthy();
+    expect((await b.get(`${photoPath}/${ownerId}`)).ok()).toBeTruthy();
     expect(JSON.stringify(done)).not.toContain("keyHash");
     expect(JSON.stringify(done)).not.toContain("claimHash");
   } finally {
@@ -120,6 +185,13 @@ test("anonymous access, cross-origin writes and malformed input are rejected", a
   request,
 }) => {
   expect((await request.get("/api/app")).status()).toBe(401);
+  expect(
+    (
+      await request.get(
+        "/api/quests/00000000-0000-4000-8000-000000000000/photos/00000000-0000-4000-8000-000000000000",
+      )
+    ).status(),
+  ).toBe(401);
   expect(
     (
       await request.post("/api/demo", {

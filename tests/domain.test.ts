@@ -10,9 +10,30 @@ import {
   sessionAction,
   setAvailable,
   view,
+  attachAchievementPhoto,
 } from "../src/lib/domain";
+import type { State } from "../src/lib/model";
 
 const now = Date.UTC(2026, 9, 24, 15);
+function photo(state: State, userId: string, sessionId: string, at = now) {
+  attachAchievementPhoto(
+    state,
+    userId,
+    sessionId,
+    {
+      id: `photo-${userId}-${sessionId}`,
+      uploadedAt: at,
+      width: 10,
+      height: 10,
+      size: 100,
+    },
+    at,
+  );
+}
+function finish(state: State, userId: string, sessionId: string, at = now) {
+  photo(state, userId, sessionId, at);
+  sessionAction(state, userId, sessionId, "complete", at);
+}
 function setup() {
   const state = emptyState();
   for (const id of ["a", "b", "outsider"]) {
@@ -59,8 +80,13 @@ test("both accept, both complete, retries award one completion", () => {
   assert.equal(session!.status, "offer");
   sessionAction(state, "b", session!.id, "accept", now);
   assert.equal(session!.status, "active");
+  assert.throws(() => sessionAction(state, "a", session!.id, "complete", now));
+  photo(state, "a", session!.id);
   sessionAction(state, "a", session!.id, "complete", now);
   assert.equal(session!.status, "active");
+  assert.equal(view(state, "a", false, now).streak, 0);
+  assert.throws(() => sessionAction(state, "b", session!.id, "complete", now));
+  photo(state, "b", session!.id);
   sessionAction(state, "b", session!.id, "complete", now);
   sessionAction(state, "b", session!.id, "complete", now);
   assert.equal(view(state, "a", false, now).completedCount, 1);
@@ -100,8 +126,7 @@ test("same-day completions count once and yesterday keeps the streak", () => {
   const session = encounter(state, input, now).session!;
   for (const user of ["a", "b"])
     sessionAction(state, user, session.id, "accept", now);
-  for (const user of ["a", "b"])
-    sessionAction(state, user, session.id, "complete", now);
+  for (const user of ["a", "b"]) finish(state, user, session.id, now);
   const later = now + 600_001;
   for (const device of state.devices) device.lastSeen = later;
   for (const id of ["a", "b"]) setAvailable(state, id, true, later);
@@ -112,12 +137,28 @@ test("same-day completions count once and yesterday keeps the streak", () => {
   ).session!;
   for (const user of ["a", "b"])
     sessionAction(state, user, second.id, "accept", later);
-  for (const user of ["a", "b"])
-    sessionAction(state, user, second.id, "complete", later);
+  for (const user of ["a", "b"]) finish(state, user, second.id, later);
   assert.equal(view(state, "a", false, later).completedCount, 2);
   assert.equal(view(state, "a", false, later).streak, 1);
   assert.equal(view(state, "a", false, now + 86_400_000).streak, 1);
   assert.equal(view(state, "a", false, now + 2 * 86_400_000).streak, 0);
+});
+test("photos belong to each participant and lock after their own confirmation", () => {
+  const { state, input } = setup();
+  const session = encounter(state, input, now).session!;
+  assert.throws(() => photo(state, "a", session.id));
+  for (const user of ["a", "b"])
+    sessionAction(state, user, session.id, "accept", now);
+  assert.throws(() => photo(state, "outsider", session.id));
+  photo(state, "a", session.id);
+  assert.equal(session.participants[1].photo, undefined);
+  sessionAction(state, "a", session.id, "complete", now);
+  assert.throws(() => photo(state, "a", session.id));
+  photo(state, "b", session.id);
+  assert.equal(session.status, "active");
+  assert.equal(view(state, "a", false, now).streak, 0);
+  sessionAction(state, "b", session.id, "complete", now);
+  assert.equal(session.status, "completed");
 });
 test("mixed modes respect Work mode, lower time and lower budget", () => {
   const { state, input } = setup();

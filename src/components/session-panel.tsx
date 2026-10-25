@@ -15,16 +15,19 @@ import {
   X,
 } from "lucide-react";
 import type { AppView } from "@/lib/model";
+import { AchievementGallery, AchievementUpload } from "./achievement-photos";
 
 type Perform = (command: Record<string, unknown>) => Promise<void>;
 export function SessionPanel({
   data,
   busy,
   perform,
+  onUpdated,
 }: {
   data: AppView;
   busy: boolean;
   perform: Perform;
+  onUpdated: (data: AppView) => void;
 }) {
   const session = data.session!;
   const self = session.people.find((person) => person.id === data.user.id)!;
@@ -70,6 +73,7 @@ export function SessionPanel({
             ? `You and ${partner.name} completed “${quest.title}”. A small adventure, now part of your story.`
             : session.reason}
         </p>
+        {done && <AchievementGallery session={session} />}
         {done && (
           <div className="result-stats">
             <div>
@@ -296,7 +300,9 @@ export function SessionPanel({
                         : "Considering the quest"
                       : person.completed
                         ? "Completion confirmed"
-                        : "Making a memory"}
+                        : person.photo
+                          ? "Photo saved · ready to confirm"
+                          : "Achievement photo needed"}
                   </small>
                 </div>
                 <span
@@ -354,9 +360,15 @@ export function SessionPanel({
             </>
           ) : (
             <>
+              <AchievementUpload
+                data={data}
+                disabled={busy}
+                onUpdated={onUpdated}
+                perform={perform}
+              />
               <button
                 className="app-button primary wide"
-                disabled={busy || self.completed}
+                disabled={busy || self.completed || !self.photo}
                 onClick={() => void action("complete")}
               >
                 {self.completed ? (
@@ -369,6 +381,11 @@ export function SessionPanel({
                   </>
                 )}
               </button>
+              {!self.photo && (
+                <p className="field-note">
+                  Add and save your own photo to unlock confirmation.
+                </p>
+              )}
               <button
                 className="text-action subdued"
                 disabled={busy}
@@ -426,21 +443,38 @@ export function SessionPanel({
                   </button>
                 </>
               ) : (
-                <button
-                  className="app-button secondary"
-                  disabled={busy || partner.completed}
-                  onClick={() =>
-                    void perform({
-                      action: "demoPartner",
-                      sessionId: session.id,
-                      operation: "complete",
-                    })
-                  }
-                >
-                  {partner.completed
-                    ? "Partner confirmed"
-                    : "Partner confirms completion"}
-                </button>
+                <>
+                  {!partner.photo && (
+                    <button
+                      className="app-button secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        void perform({
+                          action: "demoPhoto",
+                          sessionId: session.id,
+                          participant: "partner",
+                        })
+                      }
+                    >
+                      Partner adds a sample photo
+                    </button>
+                  )}
+                  <button
+                    className="app-button secondary"
+                    disabled={busy || partner.completed || !partner.photo}
+                    onClick={() =>
+                      void perform({
+                        action: "demoPartner",
+                        sessionId: session.id,
+                        operation: "complete",
+                      })
+                    }
+                  >
+                    {partner.completed
+                      ? "Partner confirmed"
+                      : "Partner confirms completion"}
+                  </button>
+                </>
               )}
             </div>
             <details className="partner-link">

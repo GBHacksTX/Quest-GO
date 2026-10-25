@@ -9,3 +9,13 @@ Each entity has a typed JSON document in a `data` column, with relational keys a
 All writes pass through one transaction. SQLite uses an immediate transaction; PostgreSQL uses a transaction-scoped advisory lock. Domain checks and updates therefore see a consistent shared state, including simultaneous accepts, reversed proximity reports and completion retries. The repository currently loads the small application dataset per transaction; this is an intentional hackathon limit, not a high-throughput design.
 
 Availability expires after 45 seconds without a foreground browser heartbeat. Offers expire after five minutes; active sessions after 24 hours. Repeated reports for the same device pair are suppressed for ten minutes. Completion history is the source of truth for engagement; streaks count distinct UTC completion days, with yesterday preserving a current streak. No separate reward counter can be incremented twice.
+
+## Achievement photos — migration 002
+
+`002_achievement_photos.sql` adds one private photo per `(session_id, user_id)`, with a foreign key to participation. The table stores the normalized JPEG as bounded base64 text (at most 2 MB before encoding), dimensions, a revision ID and upload timestamp. No new storage account or API key is needed. Photo metadata is loaded with session state; image bytes are loaded only by the private image endpoint, not by ordinary polling.
+
+Saving a photo and its participant metadata is transactional. Only the uploader can replace their photo, and only while the activity is active and their completion is unconfirmed. Actual image decoding, format checks and re-encoding happen before the transaction. Original file names and EXIF/GPS metadata are not stored.
+
+Migrations now run in version order and are recorded so they are not repeated. Demo databases upgrade automatically; run `npm run db:migrate` for live PostgreSQL before launching the new application. Existing completed history and streaks are preserved. Migration 002 clears confirmations on unfinished active sessions once, so those participants can add photos and confirm again under the new requirement. Back up live data before applying migrations.
+
+Both PostgreSQL and demo SQLite store the photo bytes alongside session data. This is an intentional small-MVP storage choice; photos are not written to a public filesystem folder. Database backups include photos. Any future move to object storage should preserve these access rules and migrate existing records intentionally.

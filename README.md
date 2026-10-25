@@ -1,6 +1,6 @@
 # QuestGo
 
-QuestGo turns a nearby hello into a shared real-world adventure. The MVP includes onboarding, device pairing, opt-in availability, shared quest offers, mutual acceptance and completion, preferences, history and streaks.
+QuestGo turns a nearby hello into a shared real-world adventure. The MVP includes onboarding, device pairing, opt-in availability, shared quest offers, mutual acceptance and completion, each participant’s achievement photo, preferences, photo history and streaks.
 
 ## Try it locally
 

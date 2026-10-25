@@ -25,6 +25,7 @@ import {
 import type { AppView, Preferences } from "@/lib/model";
 import { ProfileForm } from "./profile-form";
 import { SessionPanel } from "./session-panel";
+import { AchievementGallery } from "./achievement-photos";
 
 type Tab = "home" | "history" | "device" | "preferences";
 type Config = { google: boolean; facebook: boolean; demoEnabled: boolean };
@@ -86,7 +87,11 @@ export function QuestApp() {
     setError("");
     try {
       const response = await fetch(
-        command.action === "retryVenue" ? "/api/quests/retry" : "/api/app",
+        command.action === "retryVenue"
+          ? "/api/quests/retry"
+          : command.action === "demoPhoto"
+            ? "/api/demo/photos"
+            : "/api/app",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -463,7 +468,15 @@ export function QuestApp() {
               </aside>
             </div>
           ) : showSession ? (
-            <SessionPanel data={data} busy={busy} perform={perform} />
+            <SessionPanel
+              data={data}
+              busy={busy}
+              perform={perform}
+              onUpdated={(next) => {
+                epoch.current++;
+                setData(next);
+              }}
+            />
           ) : tab === "device" ? (
             <div className="setup-grid">
               <section className="panel device-panel">
@@ -583,7 +596,7 @@ export function QuestApp() {
             <section className="panel history-panel">
               <div className="panel-intro">
                 <span className="section-kicker">
-                  YOUR COLLECTION OF LITTLE ADVENTURES
+                  YOUR ACHIEVEMENTS · MEMORIES YOU MADE TOGETHER
                 </span>
                 <h2>
                   {data.history.length
@@ -633,6 +646,7 @@ export function QuestApp() {
                         <MapPin size={13} /> {entry.quest.venue.name}
                       </p>
                     )}
+                    <AchievementGallery session={entry} />
                   </details>
                 ))
               ) : (

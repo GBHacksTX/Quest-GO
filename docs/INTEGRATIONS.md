@@ -62,3 +62,9 @@ The historical browser restriction above was superseded by successful desktop/mo
 - Desktop/mobile screenshots are generated and visually inspected.
 - The local production app is available on port 3101. Automatic Chrome opening was declined by the browser origin approval gate; the user can open the provided link directly. This does not change the already completed automated test results.
 - No remote push or hosted deployment has been performed.
+
+## Photo achievements and streak verification — October 25, 2026
+
+Separate participant photo uploads, private image viewing, completed achievement galleries and the existing UTC streak system are implemented. Migration 002 stores photos in the same selected database, so this feature requires no additional service or API key. Live PostgreSQL must be migrated before updating a deployment; demo SQLite upgrades automatically.
+
+Fourteen automated domain/integration/storage tests and all six API/browser scenarios pass against the updated production runtime. Tests cover each participant's own upload, completion blocked without a photo, immutable photos after confirmation, unauthorized image access, metadata stripping, upload retry, reload recovery, two-photo history, partial completion without streak credit and repeated completion without duplicate credit. The disposable PostgreSQL check verifies photos and migration idempotence. TypeScript and the production build pass. External integration blockers listed above remain unchanged.

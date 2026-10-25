@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import sharp from "sharp";
+import {
+  normalizePhoto,
+  readAchievementPhoto,
+  storeAchievementPhoto,
+} from "../src/lib/achievement-photos";
 import { migrate, transact } from "../src/lib/store";
 import {
   encounter,
@@ -56,6 +62,28 @@ async function main() {
       transact(false, (state) => sessionAction(state, id, sessionId, "accept")),
     ),
   );
+  const source = await sharp({
+    create: { width: 8, height: 6, channels: 3, background: "#5a8055" },
+  })
+    .png()
+    .toBuffer();
+  const image = await normalizePhoto(source, "image/png");
+  await Promise.all(
+    ids.map((id) => storeAchievementPhoto(false, id, sessionId, image)),
+  );
+  assert.deepEqual(
+    await readAchievementPhoto(false, ids[1], sessionId, ids[0]),
+    image.data,
+  );
+  await transact(false, (state) =>
+    sessionAction(state, ids[0], sessionId, "complete"),
+  );
+  await migrate();
+  assert.ok(
+    (
+      await transact(false, (state) => view(state, ids[0]))
+    ).session!.people.find((person) => person.id === ids[0])!.completed,
+  );
   await Promise.all(
     [...ids, ...ids].map((id) =>
       transact(false, (state) =>
@@ -67,6 +95,8 @@ async function main() {
   assert.equal(result.session!.status, "completed");
   assert.equal(result.completedCount, 1);
   assert.equal(result.streak, 1);
+  assert.ok(result.session!.people.every((person) => person.photo));
+  await migrate();
   const client = new Pool({ connectionString: url });
   try {
     await assert.rejects(
@@ -95,7 +125,7 @@ async function main() {
     await client.end();
   }
   console.log(
-    "PostgreSQL verified: migration, real writes/reads, racing accepts/completions, retry safety, unique participation and foreign keys.",
+    "PostgreSQL verified: versioned migrations, private photos, racing accepts/completions, streak retry safety and relational constraints.",
   );
 }
 main()

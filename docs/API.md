@@ -18,3 +18,11 @@ The demo uses signed, HTTP-only cookies. Its explicit `demoEncounter` and `demoP
 Invalid bodies, nonparticipant actions, cross-origin writes and expired sessions are rejected. Pairing attempts and demo creation are rate limited in the single application process. A saved action is acknowledged only after its database transaction commits. Unexpected service failures return a generic recoverable error without database connection details or keys.
 
 The automated API checks exercise two distinct cookie identities, shared IDs, mutual consent, completion retries, outsider rejection, missing authentication and cross-origin rejection. Real Google and Facebook login still require configured provider applications, live PostgreSQL and external verification.
+
+## Achievement photo endpoints
+
+- `POST /api/quests/<sessionId>/photos`: same-origin authenticated multipart upload with a `photo` field. Uploads apply only to the caller's participation in an active quest, before their confirmation. Returns the caller's updated application view after the transaction commits.
+- `GET /api/quests/<sessionId>/photos/<userId>`: serve the saved JPEG only to participants of that session. Images use private, no-store responses and are not embedded as bytes in state responses.
+- `POST /api/demo/photos`: explicitly simulate a self/partner photo inside the caller's isolated demo room. Live accounts cannot use it. Sample art is labeled as demonstration data and still passes through normal decoding and persistence.
+
+Allowed uploads are JPEG, PNG and WebP, at most 10 MB and 40 megapixels. The request stream is bounded before multipart parsing. Photos are re-encoded with a maximum dimension of 1600 pixels and a maximum stored size of 2 MB, with original metadata removed. Invalid files, nonparticipant access, post-confirmation replacements and attempts to confirm without one's own photo are rejected. Both photos and confirmations are needed for final completion and streak credit.
