@@ -10,3 +10,4 @@ playwright-report/
 test-results/
 .questgo/
 artifacts/
+next-env.d.ts

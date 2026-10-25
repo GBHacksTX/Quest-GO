@@ -88,19 +88,19 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 
 ## 11. Prepare hardware and hosting
 
-**Branch:** `feat/hardware-and-venues`; deployment/verification work continues on its own feature branch.
+**Branch:** `feat/hardware-and-venues`; deployment/verification work is on `feat/mvp-verification`.
 
 **Work:** Publish the software reporting contract and provisioning commands. Prepare runtime configuration and deployment instructions for the actual hosting target.
 
-**Status:** Hardware contract and commands implemented. Physical ESP32 verification and NorthMark deployment access remain external handoff work. A local server is not proof of successful hosting.
+**Status:** Hardware contract, provisioning commands, Node hosting instructions and an optional Dockerfile are implemented. Physical ESP32 verification and NorthMark deployment access remain external handoff work. Docker is unavailable here, so the container build is unverified. A local server is not proof of successful hosting.
 
 ## 12. Verify and hand off the MVP
 
-**Branch:** next local verification/deployment feature branch.
+**Branch:** `feat/mvp-verification`.
 
 **Work:** Run domain/integration tests, real PostgreSQL checks, API/browser scenarios, TypeScript and a production build. Inspect phone/desktop screenshots and supply the exact demo sequence and remaining integration requirements.
 
-**Status:** Eleven domain/integration/storage tests and the local PostgreSQL check pass. Earlier desktop/mobile, skip-path and two-identity API checks passed; rerun the final suite after the venue/hardware changes. Record final results and commands in the demo guide.
+**Status:** Complete for the local MVP. Eleven domain/integration/storage tests, all six API/browser scenarios against the production build, TypeScript and the production build pass. The disposable PostgreSQL 17 check passes. Phone/desktop screenshots are inspected and the [demo guide](DEMO.md) gives the exact walkthrough. External verification remains listed below.
 
 ## What remains external
 

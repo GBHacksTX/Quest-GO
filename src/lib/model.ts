@@ -32,9 +32,15 @@ export type Quest = {
   steps: string[];
   minutes: number;
   costEstimate: number | null;
+  budgetLimit?: number;
   mode: "normal" | "work";
   source: "demo" | "osm" | "fallback";
-  venue?: { name: string; address: string; url: string; directionsUrl?: string };
+  venue?: {
+    name: string;
+    address: string;
+    url: string;
+    directionsUrl?: string;
+  };
   sourceText?: string;
 };
 export type Encounter = {
@@ -44,7 +50,11 @@ export type Encounter = {
   userIds: string[];
   detectedAt: number;
 };
-export type Participant = { userId: string; acceptedAt?: number; completedAt?: number };
+export type Participant = {
+  userId: string;
+  acceptedAt?: number;
+  completedAt?: number;
+};
 export type QuestSession = {
   id: string;
   encounterId: string;
@@ -59,9 +69,24 @@ export type QuestSession = {
   generationStartedAt?: number;
   participants: Participant[];
 };
-export type State = { users: User[]; devices: Device[]; encounters: Encounter[]; quests: Quest[]; sessions: QuestSession[] };
-export const emptyState = (): State => ({ users: [], devices: [], encounters: [], quests: [], sessions: [] });
-export type SessionView = QuestSession & { quest: Quest; people: { id: string; name: string; accepted: boolean; completed: boolean }[] };
+export type State = {
+  users: User[];
+  devices: Device[];
+  encounters: Encounter[];
+  quests: Quest[];
+  sessions: QuestSession[];
+};
+export const emptyState = (): State => ({
+  users: [],
+  devices: [],
+  encounters: [],
+  quests: [],
+  sessions: [],
+});
+export type SessionView = QuestSession & {
+  quest: Quest;
+  people: { id: string; name: string; accepted: boolean; completed: boolean }[];
+};
 export type AppView = {
   user: User;
   devices: { id: string; lastSeen?: number }[];

@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+node_modules
+.next
+.questgo
+artifacts
+test-results
+playwright-report
+*.tsbuildinfo
+next-env.d.ts
+.aws
+.codex

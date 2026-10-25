@@ -7,8 +7,12 @@ import { makeUser } from "@/lib/domain";
 export const { handlers, auth } = NextAuth({
   trustHost: true,
   providers: [
-    ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET ? [Google] : []),
-    ...(process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET ? [Facebook] : []),
+    ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+      ? [Google]
+      : []),
+    ...(process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET
+      ? [Facebook]
+      : []),
   ],
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   pages: { signIn: "/explore", error: "/explore" },
@@ -17,15 +21,24 @@ export const { handlers, auth } = NextAuth({
       if (account && user) {
         token.appUserId = await transact(false, (state) => {
           const providerKey = `${account.provider}:${account.providerAccountId}`;
-          let person = state.users.find((entry) => entry.providerKey === providerKey);
-          if (!person) { person = makeUser(providerKey, (user.name || "Explorer").slice(0, 32)); state.users.push(person); }
+          let person = state.users.find(
+            (entry) => entry.providerKey === providerKey,
+          );
+          if (!person) {
+            person = makeUser(
+              providerKey,
+              (user.name || "Explorer").slice(0, 32),
+            );
+            state.users.push(person);
+          }
           return person.id;
         });
       }
       return token;
     },
     session({ session, token }) {
-      if (session.user && typeof token.appUserId === "string") session.user.id = token.appUserId;
+      if (session.user && typeof token.appUserId === "string")
+        session.user.id = token.appUserId;
       return session;
     },
   },

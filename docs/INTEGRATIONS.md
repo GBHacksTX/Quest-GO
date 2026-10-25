@@ -9,7 +9,7 @@ Updated October 25, 2026. The complete demo runs without external credentials. I
 | Nearby venues | OpenStreetMap Overpass lookup, geocoding, source links, directions, unknown-price handling and free fallback. | Fixture validation passes. Live public Overpass calls timed out in this environment; venue retrieval is not claimed externally verified. |
 | Gemini | Server-side structured activity request with bounded time, duration validation and deterministic fallback. | Malformed-output and failure checks pass. A real generation needs `GEMINI_API_KEY` and an available model. |
 | ESP32 | Per-device provisioning, private claims, authenticated heartbeat and encounter endpoints. | Sender-authentication checks pass. Teammate firmware and two physical devices still need connection and a real proximity check. |
-| Hosting | Local application works; see deployment guide when added. | NorthMark target access and hosted HTTPS verification are still required. |
+| Hosting | Production build and local production runtime verified; Node deployment instructions and an optional Dockerfile are included. Docker itself is not installed here. | NorthMark target access and hosted HTTPS verification are still required. |
 
 ## Environment setup
 
@@ -51,4 +51,14 @@ NorthMark hosting access is needed for the connected hosted demo, not for review
 - Browser navigation was denied by the browser approval gate. Desktop/mobile visual layout and live keyboard/click checks remain unverified; responsive styles and native button keyboard behavior are implemented.
 - Turbopack failed to bind its worker port in the execution environment, including on an escalated attempt. The project uses the supported `--webpack` option for development and builds.
 
-The historical browser restriction above was superseded by successful desktop/mobile Playwright checks during MVP implementation. Current validation is recorded in the demo and verification guide.
+The historical browser restriction above was superseded by successful desktop/mobile Playwright checks during MVP implementation. Current validation is recorded in [DEMO.md](DEMO.md).
+
+## Final local verification — October 25, 2026
+
+- TypeScript and the optimized production build pass.
+- Eleven automated domain/integration/storage tests pass.
+- All six API/browser scenarios pass against the production server: independent identities, access protection, desktop/mobile completion and reload, passing without credit, failed-save recovery, and mobile sign-out.
+- PostgreSQL 17 migration, real persistence, concurrent transitions, foreign keys and unique participation pass on a disposable local cluster, which is stopped after the check.
+- Desktop/mobile screenshots are generated and visually inspected.
+- The local production app is available on port 3101. Automatic Chrome opening was declined by the browser origin approval gate; the user can open the provided link directly. This does not change the already completed automated test results.
+- No remote push or hosted deployment has been performed.
