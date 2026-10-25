@@ -216,6 +216,8 @@ Do not knowingly commit a broken application state unless explicitly requested f
 
 ## 11. Git Rules
 
+The user creates all commits. Agents must leave staging and committing to the user and always provide a suggested Conventional Commit message. Do not run a merge or rebase operation that creates commits on the user's behalf; provide the integration commands for the user to run.
+
 Commits must be intentional and logically scoped.
 
 A commit should tell one understandable story.
@@ -277,6 +279,17 @@ git log --oneline -5
 ```
 
 Do not begin by rewriting files that another contributor may be actively modifying unless the task requires it.
+
+### Feature Branch and Integration Workflow
+
+1. Start each feature on its own `feat/<feature-name>` branch from the current `main`. Record the branch in `TASKS.md`. Do not implement features directly on `main`.
+2. Implement and validate the feature on that branch. Give the user the commit message and let them stage and commit the work.
+3. After the feature is committed, preserve its branch and commits exactly as they are. Keep the branch after integration; do not rebase, squash, merge into, reset, or delete it.
+4. For integration, provide commands to create a separate `integration/<feature-name>` branch at the feature branch's tip and rebase that copy onto the latest `main`. Resolve any conflicts on the integration copy and validate the result.
+5. Squash merge the integration copy into `main` so the feature becomes one commit on `main`. The user runs the integration commands and creates the final commit using the supplied message.
+6. Keep the original `feat/<feature-name>` branch unchanged. Start the next feature from the updated `main`.
+
+Rebasing the integration copy provides an up-to-date result while preserving the original feature history. Only begin integration with committed work and a clean working tree; never carry unrelated edits between branches.
 
 ### Keep Changes Localized
 
@@ -391,7 +404,7 @@ unless explicitly instructed.
 
 Do not hold several independent completed features in one uncommitted working tree.
 
-Once a coherent feature is working and validated, commit it before beginning an unrelated feature.
+Once a coherent feature is working and validated, give the user a commit message and leave committing to them before beginning an unrelated feature.
 
 This reduces both merge risk and accidental mixing of work.
 
@@ -461,6 +474,8 @@ Read relevant documentation
       ↓
 Inspect repository and current Git state
       ↓
+Create feat/<feature-name> branch from current main
+      ↓
 Identify smallest coherent solution
       ↓
 Implement localized changes
@@ -471,7 +486,11 @@ Review git diff
       ↓
 Update documentation if required
       ↓
-Create intentional commit
+Provide commit message; user stages and commits
+      ↓
+Provide integration-copy rebase and squash-merge commands
+      ↓
+User integrates into main; original feature branch stays unchanged
 ```
 
 Do not jump directly from a prompt to large-scale code generation without inspecting the repository.
@@ -486,7 +505,8 @@ After completing work, report:
 - files materially changed
 - important architectural/domain decisions
 - validation performed
-- commit created
+- feature branch and suggested commit message
+- integration status and any commands the user still needs to run
 - unresolved blocker, if any
 
 Keep the report concise.
@@ -503,8 +523,10 @@ A task is complete when:
 - no obvious unrelated behavior was broken
 - documentation reflects meaningful changes
 - secrets are not committed
-- the Git commit is coherent and intentional
+- the changes are ready for a coherent commit, with its message supplied to the user
 - unrelated contributor changes were preserved
 - the change is reasonably isolated to reduce future merge conflicts
 
 A feature being technically possible is not enough. It should be in a state another teammate or agent can understand, integrate, and continue from.
+
+Report implementation readiness separately from integration. A feature is integrated only after the user has completed the squash merge into `main`; preserve its original feature branch afterward.

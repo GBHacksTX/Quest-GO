@@ -1,5 +1,9 @@
 # Quest-GO
 
+QuestGo turns nearby devices into shared real-world activities.
+
+Start with the [implementation plan](docs/TASKS.md) for the ordered build steps and completion checks. See the [architecture](docs/ARCHITECTURE.md), [domain model](docs/DOMAIN.md), and [agent guidelines](docs/AGENTS.md) for supporting decisions and development rules.
+
 ## Local development
 
 Requires Node.js 22 or newer and npm.
