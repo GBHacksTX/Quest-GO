@@ -8,6 +8,7 @@ import {
   normalizePhoto,
   readAchievementPhoto,
   storeAchievementPhoto,
+  retryPhotoValidation,
 } from "../src/lib/achievement-photos";
 import { transact } from "../src/lib/store";
 import {
@@ -27,6 +28,7 @@ test("persisted transactions serialize racing accepts and completions", async ()
     for (const id of ["a", "b"]) {
       const user = makeUser(id, id);
       user.id = id;
+      user.demoRoom = "test-room";
       user.onboarded = true;
       state.users.push(user);
       state.devices.push({
@@ -60,8 +62,120 @@ test("persisted transactions serialize racing accepts and completions", async ()
     .png()
     .toBuffer();
   const image = await normalizePhoto(encoded, "image/png");
+  const approve = async (
+    quest: Parameters<typeof import("../shared/quest-ai").validateQuest>[0],
+  ) => ({
+    completed: true,
+    confidence: 0.9,
+    reasoning: "Fixture",
+    criteria: quest.completionCriteria.map((criterion) => ({
+      criterion,
+      met: true,
+      evidence: "Fixture",
+    })),
+  });
+  const rejected = await storeAchievementPhoto(
+    true,
+    "a",
+    sessionId,
+    image,
+    "a",
+    true,
+    async (quest) => ({
+      ...(await approve(quest)),
+      completed: false,
+      criteria: quest.completionCriteria.map((criterion) => ({
+        criterion,
+        met: false,
+        evidence: "Missing",
+      })),
+    }),
+  );
+  const originalId = rejected.session!.people[0].photo!.id;
+  await assert.rejects(
+    transact(true, (state) => sessionAction(state, "a", sessionId, "complete")),
+  );
+  const failed = await retryPhotoValidation(
+    true,
+    "a",
+    sessionId,
+    originalId,
+    async () => {
+      throw new Error("private upstream detail");
+    },
+  );
+  assert.equal(failed.session!.people[0].photo!.validation!.status, "error");
+  assert.ok(
+    !failed.session!.people[0].photo!.validation!.reasoning.includes(
+      "private upstream",
+    ),
+  );
+  let release!: () => void;
+  let entered!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const wait = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const oldCheck = retryPhotoValidation(
+    true,
+    "a",
+    sessionId,
+    originalId,
+    async (quest) => {
+      entered();
+      await wait;
+      return approve(quest);
+    },
+  );
+  await ready;
+  const newer = await storeAchievementPhoto(
+    true,
+    "a",
+    sessionId,
+    image,
+    "a",
+    true,
+    async (quest) => ({
+      ...(await approve(quest)),
+      completed: false,
+      criteria: quest.completionCriteria.map((criterion) => ({
+        criterion,
+        met: false,
+        evidence: "Missing",
+      })),
+    }),
+  );
+  release();
+  await oldCheck;
+  const current = await transact(true, (state) => view(state, "a", true));
+  assert.equal(
+    current.session!.people[0].photo!.id,
+    newer.session!.people[0].photo!.id,
+  );
+  assert.equal(
+    current.session!.people[0].photo!.validation!.status,
+    "rejected",
+  );
+  await assert.rejects(
+    retryPhotoValidation(true, "a", sessionId, originalId, approve),
+  );
   for (const user of ["a", "b"])
     await storeAchievementPhoto(true, user, sessionId, image);
+  await transact(true, async (_state, query) => {
+    const rows = await query(
+      "SELECT id FROM questgo_photo_submissions WHERE session_id=$1",
+      [sessionId],
+    );
+    assert.equal(rows.length, 4);
+    assert.ok(rows.some((row) => row.id === originalId));
+    const checks = await query(
+      "SELECT status FROM questgo_photo_validations WHERE photo_id=$1",
+      [originalId],
+    );
+    assert.equal(checks.length, 6);
+  });
   assert.deepEqual(
     await readAchievementPhoto(true, "b", sessionId, "a"),
     image.data,
@@ -80,4 +194,15 @@ test("persisted transactions serialize racing accepts and completions", async ()
   assert.equal(saved.streak, 1);
   assert.ok(saved.session!.people.every((person) => person.photo));
   await assert.rejects(storeAchievementPhoto(true, "a", sessionId, image));
+  await transact(true, async (_state, query) => {
+    const rows = await query(
+      "SELECT evidence_json FROM questgo_achievements WHERE session_id=$1",
+      [sessionId],
+    );
+    assert.equal(rows.length, 1);
+    assert.equal(
+      JSON.parse(String(rows[0].evidence_json)).participants.length,
+      2,
+    );
+  });
 });

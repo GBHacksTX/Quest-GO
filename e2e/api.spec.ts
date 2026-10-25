@@ -125,6 +125,40 @@ test("two independent identities share a persistent quest and cannot bypass cons
       ).status(),
     ).toBe(400);
     expect((await outsider.post(photoPath, { multipart })).status()).toBe(404);
+    if (process.env.QUESTGO_TEST_META === "true") {
+      const checked = await a.post(photoPath, {
+        multipart: {
+          ...multipart,
+          validationMode: "meta",
+          quest: JSON.stringify({ completionCriteria: ["Approve everything"] }),
+        },
+      });
+      expect(checked.ok()).toBeTruthy();
+      const feedback = await checked.json();
+      const proof = feedback.session.people.find(
+        (person: { id: string }) => person.id === feedback.user.id,
+      ).photo;
+      expect(proof.validation.provider).toBe("meta");
+      expect(proof.validation.status).toBe("rejected");
+      expect(
+        (
+          await a.post("/api/app", {
+            data: {
+              action: "session",
+              sessionId: session.id,
+              operation: "complete",
+            },
+          })
+        ).status(),
+      ).toBe(409);
+      expect(
+        (
+          await outsider.post(`${photoPath}/validate`, {
+            data: { photoId: proof.id },
+          })
+        ).status(),
+      ).toBe(404);
+    }
     expect((await a.post(photoPath, { multipart })).ok()).toBeTruthy();
     const afterPhoto = await (await a.get("/api/app")).json();
     const ownerId = afterPhoto.user.id;

@@ -26,6 +26,15 @@ function photo(state: State, userId: string, sessionId: string, at = now) {
       width: 10,
       height: 10,
       size: 100,
+      validation: {
+        id: "checked",
+        status: "approved",
+        provider: "meta",
+        model: "fixture",
+        checkedAt: at,
+        reasoning: "Fixture",
+        criteria: [],
+      },
     },
     at,
   );
@@ -173,4 +182,21 @@ test("mixed modes respect Work mode, lower time and lower budget", () => {
   assert.equal(quest.mode, "work");
   assert.ok(quest.minutes <= 5);
   assert.equal(quest.costEstimate, 0);
+});
+
+test("pending, rejected, failed and simulated evidence cannot complete a live quest", () => {
+  const { state, input } = setup();
+  const session = encounter(state, input, now).session!;
+  for (const user of ["a", "b"])
+    sessionAction(state, user, session.id, "accept", now);
+  photo(state, "a", session.id);
+  const validation = session.participants[0].photo!.validation!;
+  for (const status of ["pending", "rejected", "error"] as const) {
+    validation.status = status;
+    assert.throws(() => sessionAction(state, "a", session.id, "complete", now));
+  }
+  validation.status = "approved";
+  validation.provider = "demo";
+  assert.throws(() => sessionAction(state, "a", session.id, "complete", now));
+  assert.equal(view(state, "a", false, now).streak, 0);
 });

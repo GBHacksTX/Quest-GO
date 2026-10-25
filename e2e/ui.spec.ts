@@ -107,6 +107,13 @@ for (const viewport of [
       .getByRole("button", { name: "Save my achievement photo" })
       .click();
     await expect(confirm).toBeEnabled();
+    await expect(
+      page.getByText("Approved in demo simulation", { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: `artifacts/${viewport.name}-photo-check.png`,
+      fullPage: true,
+    });
     await page.reload();
     await expect(confirm).toBeEnabled();
     await page

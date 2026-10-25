@@ -50,6 +50,8 @@ export async function POST(
       identity.id,
       sessionId,
       image,
+      identity.id,
+      !identity.demo || form.get("validationMode") === "meta",
     );
     return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

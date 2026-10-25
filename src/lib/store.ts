@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import { emptyState, type State, type QuestSession } from "./model";
 
 type Row = Record<string, unknown>;
-type Query = (sql: string, args?: unknown[]) => Promise<Row[]>;
+export type Query = (sql: string, args?: unknown[]) => Promise<Row[]>;
 const globals = globalThis as typeof globalThis & {
   questgoQueue?: Promise<unknown>;
   questgoDemoDb?: DatabaseSync;
@@ -22,7 +22,11 @@ const migrations = readdirSync(path.join(process.cwd(), "migrations"))
 export const liveStorageReady = () => !!process.env.DATABASE_URL;
 // Keep the user's other datasets and similarly named public tables untouched.
 export const APP_SCHEMA = "questgo_app";
-export const postgresOptions = { options: `-c search_path=${APP_SCHEMA},pg_catalog`, connectionTimeoutMillis: 8000, query_timeout: 10_000 };
+export const postgresOptions = {
+  options: `-c search_path=${APP_SCHEMA},pg_catalog`,
+  connectionTimeoutMillis: 8000,
+  query_timeout: 10_000,
+};
 
 async function load(query: Query): Promise<State> {
   const state = emptyState();
@@ -40,18 +44,28 @@ async function load(query: Query): Promise<State> {
   const photos = await query(
     "SELECT id, session_id, user_id, width, height, size_bytes, uploaded_at FROM achievement_photos",
   );
-  const submissions = await query("SELECT id,session_id,user_id,revision,width,height,size_bytes,uploaded_at FROM questgo_photo_submissions ORDER BY revision DESC");
-  const validations = await query("SELECT photo_id,data,ordinal FROM questgo_photo_validations ORDER BY ordinal DESC");
+  const submissions = await query(
+    "SELECT id,session_id,user_id,revision,width,height,size_bytes,uploaded_at FROM questgo_photo_submissions ORDER BY revision DESC",
+  );
+  const validations = await query(
+    "SELECT photo_id,data,ordinal FROM questgo_photo_validations ORDER BY ordinal DESC",
+  );
   for (const session of state.sessions)
     session.participants = participants
       .filter((row) => row.session_id === session.id)
       .map((row) => {
-        const submission = submissions.find((entry) => entry.session_id === row.session_id && entry.user_id === row.user_id);
-        const photo = submission || photos.find(
+        const submission = submissions.find(
           (entry) =>
             entry.session_id === row.session_id &&
             entry.user_id === row.user_id,
         );
+        const photo =
+          submission ||
+          photos.find(
+            (entry) =>
+              entry.session_id === row.session_id &&
+              entry.user_id === row.user_id,
+          );
         return {
           userId: String(row.user_id),
           acceptedAt:
@@ -66,7 +80,15 @@ async function load(query: Query): Promise<State> {
                 height: Number(photo.height),
                 size: Number(photo.size_bytes),
                 revision: submission ? Number(submission.revision) : undefined,
-                validation: submission ? JSON.parse(String(validations.find((entry) => entry.photo_id === submission.id)?.data || "null")) || undefined : undefined,
+                validation: submission
+                  ? JSON.parse(
+                      String(
+                        validations.find(
+                          (entry) => entry.photo_id === submission.id,
+                        )?.data || "null",
+                      ),
+                    ) || undefined
+                  : undefined,
               }
             : undefined,
         };
@@ -121,8 +143,32 @@ async function save(query: Query, state: State) {
           person.completedAt ?? null,
         ],
       );
-    if (session.status === "completed" && session.completedAt && participants.every((person) => person.photo?.validation?.status === "approved" && (state.users.find((user) => user.id === person.userId)?.demoRoom || person.photo.validation.provider === "meta"))) {
-      await query("INSERT INTO questgo_achievements(id,session_id,completed_at,evidence_json) VALUES($1,$2,$3,$4) ON CONFLICT(session_id) DO NOTHING", [session.id, session.id, session.completedAt, JSON.stringify({ questId: session.questId, participants: participants.map((person) => ({ userId: person.userId, photoId: person.photo!.id, validationId: person.photo!.validation!.id })) })]);
+    if (
+      session.status === "completed" &&
+      session.completedAt &&
+      participants.every(
+        (person) =>
+          person.photo?.validation?.status === "approved" &&
+          (state.users.find((user) => user.id === person.userId)?.demoRoom ||
+            person.photo.validation.provider === "meta"),
+      )
+    ) {
+      await query(
+        "INSERT INTO questgo_achievements(id,session_id,completed_at,evidence_json) VALUES($1,$2,$3,$4) ON CONFLICT(session_id) DO NOTHING",
+        [
+          session.id,
+          session.id,
+          session.completedAt,
+          JSON.stringify({
+            questId: session.questId,
+            participants: participants.map((person) => ({
+              userId: person.userId,
+              photoId: person.photo!.id,
+              validationId: person.photo!.validation!.id,
+            })),
+          }),
+        ],
+      );
     }
   }
 }

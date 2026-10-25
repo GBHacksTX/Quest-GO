@@ -133,6 +133,10 @@ export function sampleQuest(
     costEstimate: 5,
     mode,
     source: "demo",
+    completionCriteria: [
+      "Two people’s hands are visible; faces are optional",
+      "A shared drink or a small discovery is visible between the hands",
+    ],
     venue: {
       name: "The neighborhood café",
       address: "Illustrative venue · choose somewhere together",
@@ -149,12 +153,16 @@ export function fallbackQuest(mode: "normal" | "work", minutes: number): Quest {
     steps: [
       "Choose a comfortable public place nearby together.",
       "Each notice one small detail you would normally walk past.",
-      "Share what caught your eye, then confirm when you're both done.",
+      "Photograph both hands pointing at your discovery, then each upload your own photo and confirm.",
     ],
     minutes: Math.min(minutes, 10),
     costEstimate: 0,
     mode,
     source: "fallback",
+    completionCriteria: [
+      "Two people’s hands are visible; faces are optional",
+      "Both hands point at a small detail in a public place",
+    ],
   };
 }
 export function encounter(
@@ -233,7 +241,9 @@ export function encounter(
     quest.title = "A small discovery, together";
     quest.description =
       "Take a free wander and share something new you notice.";
-    quest.steps = fallbackQuest(quest.mode, minutes).steps;
+    const freeQuest = fallbackQuest(quest.mode, minutes);
+    quest.steps = freeQuest.steps;
+    quest.completionCriteria = freeQuest.completionCriteria;
   }
   const session: QuestSession = {
     id: randomUUID(),
@@ -308,9 +318,20 @@ export function sessionAction(
         "Add your achievement photo before confirming completion.",
         409,
       );
+    const validPhoto = (person: typeof participant) =>
+      person.photo?.validation?.status === "approved" &&
+      (getUser(state, person.userId).demoRoom ||
+        person.photo.validation.provider === "meta");
+    if (!validPhoto(participant))
+      throw new AppError(
+        "Your photo must pass its check before you can confirm completion.",
+        409,
+      );
     participant.completedAt ??= now;
     if (
-      session.participants.every((person) => person.completedAt && person.photo)
+      session.participants.every(
+        (person) => person.completedAt && validPhoto(person),
+      )
     ) {
       session.status = "completed";
       session.completedAt = now;

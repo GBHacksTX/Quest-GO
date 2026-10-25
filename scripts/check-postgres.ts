@@ -33,8 +33,12 @@ async function main() {
     );
   process.env.DATABASE_URL = url;
   const sentinel = new Pool({ connectionString: url });
-  await sentinel.query("CREATE TABLE IF NOT EXISTS public.app_users(id TEXT PRIMARY KEY,data TEXT NOT NULL)");
-  await sentinel.query("INSERT INTO public.app_users(id,data) VALUES('existing-dataset','keep this record') ON CONFLICT(id) DO NOTHING");
+  await sentinel.query(
+    "CREATE TABLE IF NOT EXISTS public.app_users(id TEXT PRIMARY KEY,data TEXT NOT NULL)",
+  );
+  await sentinel.query(
+    "INSERT INTO public.app_users(id,data) VALUES('existing-dataset','keep this record') ON CONFLICT(id) DO NOTHING",
+  );
   await sentinel.end();
   await migrate();
   const prefix = randomUUID();
@@ -73,7 +77,26 @@ async function main() {
     .toBuffer();
   const image = await normalizePhoto(source, "image/png");
   await Promise.all(
-    ids.map((id) => storeAchievementPhoto(false, id, sessionId, image)),
+    ids.map((id) =>
+      storeAchievementPhoto(
+        false,
+        id,
+        sessionId,
+        image,
+        id,
+        true,
+        async (quest) => ({
+          completed: true,
+          confidence: 1,
+          reasoning: "Test fixture",
+          criteria: quest.completionCriteria.map((criterion) => ({
+            criterion,
+            met: true,
+            evidence: "Test fixture",
+          })),
+        }),
+      ),
+    ),
   );
   assert.deepEqual(
     await readAchievementPhoto(false, ids[1], sessionId, ids[0]),
@@ -103,7 +126,47 @@ async function main() {
   await migrate();
   const client = new Pool({ connectionString: url, ...postgresOptions });
   try {
-    assert.equal((await client.query("SELECT data FROM public.app_users WHERE id='existing-dataset'")).rows[0].data,"keep this record");
+    assert.equal(
+      Number(
+        (
+          await client.query(
+            "SELECT COUNT(*) AS total FROM questgo_achievements WHERE session_id=$1",
+            [sessionId],
+          )
+        ).rows[0].total,
+      ),
+      1,
+    );
+    assert.equal(
+      Number(
+        (
+          await client.query(
+            "SELECT COUNT(*) AS total FROM questgo_photo_submissions WHERE session_id=$1",
+            [sessionId],
+          )
+        ).rows[0].total,
+      ),
+      2,
+    );
+    assert.equal(
+      Number(
+        (
+          await client.query(
+            "SELECT COUNT(*) AS total FROM questgo_photo_validations WHERE photo_id IN (SELECT id FROM questgo_photo_submissions WHERE session_id=$1)",
+            [sessionId],
+          )
+        ).rows[0].total,
+      ),
+      4,
+    );
+    assert.equal(
+      (
+        await client.query(
+          "SELECT data FROM public.app_users WHERE id='existing-dataset'",
+        )
+      ).rows[0].data,
+      "keep this record",
+    );
     await assert.rejects(
       client.query(
         "INSERT INTO participants(session_id,user_id) VALUES($1,$2)",
