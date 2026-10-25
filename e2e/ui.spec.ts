@@ -107,6 +107,46 @@ for (const viewport of [
       .getByRole("button", { name: "Save my achievement photo" })
       .click();
     await expect(confirm).toBeEnabled();
+    if (
+      viewport.name === "desktop" &&
+      process.env.QUESTGO_TEST_META === "true"
+    ) {
+      await page
+        .getByLabel("Choose achievement photo", { exact: true })
+        .setInputFiles({
+          name: "unrelated.png",
+          mimeType: "image/png",
+          buffer: photo,
+        });
+      await page
+        .getByLabel("Use real Meta AI for this photo", { exact: true })
+        .check();
+      await page
+        .getByRole("button", { name: "Save my achievement photo" })
+        .click();
+      await expect(
+        page.getByText("Try a clearer photo", { exact: true }),
+      ).toBeVisible({ timeout: 35_000 });
+      await expect(confirm).toBeDisabled();
+      await page.screenshot({
+        path: "artifacts/desktop-photo-rejected.png",
+        fullPage: true,
+      });
+      await page
+        .getByLabel("Choose achievement photo", { exact: true })
+        .setInputFiles({
+          name: "demo.png",
+          mimeType: "image/png",
+          buffer: photo,
+        });
+      await page
+        .getByLabel("Use real Meta AI for this photo", { exact: true })
+        .uncheck();
+      await page
+        .getByRole("button", { name: "Save my achievement photo" })
+        .click();
+      await expect(confirm).toBeEnabled();
+    }
     await expect(
       page.getByText("Approved in demo simulation", { exact: true }),
     ).toBeVisible();
