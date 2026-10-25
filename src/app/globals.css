@@ -907,3 +907,18 @@ main {
 .photo-validation ul { padding-left: 16px; font-size: 12px; line-height: 1.6; }
 .photo-validation li small { display: block; margin: 2px 0 9px; }
 .photo-ai-choice { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 12px 0; }
+
+.account-form { display:grid; gap:12px; text-align:left; margin-top:22px; }
+.account-form label { font-size:13px; font-weight:600; color:#365546; }
+.account-form input:not([type=checkbox]) { width:100%; min-width:0; background:#fffef9; border:1px solid #d5dacb; border-radius:9px; padding:12px; font:inherit; color:#233f32; }
+.account-form input:focus { outline:2px solid #8fa578; outline-offset:2px; }
+.account-form p, .account-form small { font-size:12px; line-height:1.65; color:#6d7e69; }
+.account-tabs { display:flex; background:#eeeee4; padding:4px; border-radius:10px; gap:4px; margin-bottom:6px; }
+.account-tabs button { flex:1; padding:10px; border:0; border-radius:7px; color:#64765d; cursor:pointer; background:transparent; }
+.account-tabs button.selected { color:#234e36; background:#fffef9; box-shadow:0 1px 4px #213a1912; }
+.account-password { display:flex; position:relative; }
+.account-password input { padding-right:45px!important; }
+.account-password button { position:absolute; right:6px; top:4px; bottom:4px; width:34px; border:0; background:transparent; color:#64765d; cursor:pointer; }
+.account-form .account-check { display:flex; align-items:center; gap:8px; font-weight:400; line-height:1.5; }
+.account-form .recovery-code { font-family:monospace; font-size:12px; }
+.account-privacy { display:flex; align-items:center; justify-content:center; gap:6px; }

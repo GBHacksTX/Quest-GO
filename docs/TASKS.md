@@ -4,7 +4,7 @@
 
 The user authorized full MVP implementation and local commits. Use a separate `feat/...` branch for each coherent feature, rebase a separate integration copy, squash merge locally into `main`, and retain the original feature branch unchanged. Never push to origin or another remote.
 
-The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This file tracks the work and evidence. A demo passing does not mean real OAuth, hosted services or physical hardware have been verified.
+The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This file tracks the work and evidence. The local MVP now uses direct password accounts and cookie sessions. OAuth has been removed. Hosted services and physical hardware remain separate verification work.
 
 ## 1. Set up the application
 
@@ -18,17 +18,17 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 
 **Branch:** `feat/session-foundation`.
 
-**Work:** Define users, devices, encounters, quests, shared sessions and participant progress. Add a versioned SQL migration and PostgreSQL read/write transactions. Use a separate local SQLite database only for the explicit demo.
+**Work:** Define users, devices, encounters, quests, shared sessions and participant progress. Add a versioned SQL migration and PostgreSQL read/write transactions. Use separate local SQLite files for accounts and the demo, with optional explicitly selected PostgreSQL.
 
 **Status:** Implemented and tested against SQLite and a disposable PostgreSQL 17 instance. A connection string is configured; the remote connection currently times out. See [DATABASE.md](DATABASE.md).
 
 ## 3. Add sign-in and user identity
 
-**Branch:** `feat/authentication-and-api`.
+**Branch:** `feat/password-accounts` (replaces the older OAuth implementation).
 
-**Work:** Google and Facebook Auth.js entry points, persistent provider identity mapping, protected API, signed isolated-demo cookies and sign-out. Never auto-link different providers solely because their emails match.
+**Work:** Direct email/password registration, browser session cookies, logout, recovery codes, protected API and isolated demo identities. No authentication API key, external identity provider or paid email service is used.
 
-**Status:** Implemented. Real OAuth login requires provider credentials, callback registration and live database configuration. Demo identity isolation is verified.
+**Status:** Implemented and verified with local SQLite. Passwords use salted scrypt; session and recovery codes are hashed in new tables. Sessions expire/revoke server-side, logout blocks replay, and recovery rotates codes and revokes previous logins. Optional PostgreSQL account/recovery checks also pass.
 
 ## 4. Associate devices with users
 
@@ -105,7 +105,7 @@ The product journey and concrete rules live in [PRODUCT.md](PRODUCT.md). This fi
 ## What remains external
 
 - Resolve the configured Tiger Data connection timeout and verify the hosted database.
-- Add missing Facebook credentials and verify both real OAuth callback flows.
+- OAuth requirements are superseded by working direct accounts; no provider credentials remain necessary.
 - Verify real quest generation with live venue data; Meta model access and image judging already pass.
 - Reliable access to the selected public venue endpoints or a suitable replacement service.
 - Teammate-owned firmware, two physical ESP32s, and an actual proximity demonstration.
@@ -144,3 +144,19 @@ Integration uses a separate `integration/validated-achievements` copy, rebased o
 Branch: `feat/auth-session-switch`. Provider sign-in clears the active demo cookie before leaving QuestGo, including when OAuth later fails. Successful provider callbacks also clear any remaining demo identity. Demo records are retained; no account data is merged or reset. Google requests account selection. A regression check covers leaving an existing demo, the exact Google callback, account selection, preservation of the saved room and the error screen after a failed login.
 
 Validation: 17 automated tests, the production build and eight browser/API scenarios. Real callback completion still depends on Google settings and live database access; initiating the login flow is tested independently of those external steps.
+
+
+## Password accounts and browser sessions
+
+Branch: `feat/password-accounts`. Remove OAuth providers and replace them with direct registration, email/password login, logout and recovery codes. Use separate local account storage so the MVP runs without external authentication keys or a reachable remote database. Add new credential/session tables, preserve existing datasets, test account isolation and session revocation, then connect the existing UI and update the setup instructions. Backend storage and account functions are implemented first; UI wiring follows on this branch.
+
+
+Current password-account implementation is complete locally: create account, save recovery code, sign in, sign out, recover password and resume the same user all work. The earlier Google/Facebook session-switch section is historical and is superseded by this replacement. Existing demo records were preserved in the persistent local directory.
+
+Validation: 20 automated tests, nine desktop/mobile/API scenarios, TypeScript, production build and disposable PostgreSQL checks pass. Per-email login limits, account isolation, expired/revoked tokens, recovery rotation and the existing photo/quest/streak journey are covered. No remote database was modified and no push was made.
+
+Focused commits on `feat/password-accounts`:
+- `c1363a9`: `feat(accounts): add persistent password accounts and revocable sessions`.
+- `66ce9e4`: `feat(auth): replace OAuth with direct cookie-based sign-in`.
+
+Integration uses `integration/password-accounts` rebased onto local `main`, then a local squash merge. The feature branch remains unchanged after integration.

@@ -10,7 +10,7 @@ The point is to make starting an interaction easier without pressuring anyone to
 
 | Step | What the person does | Why it works this way |
 | --- | --- | --- |
-| 1. Sign in | Use Google or Facebook, then choose a display name. | Progress belongs to a person and survives closing the browser. |
+| 1. Sign in | Create an email/password account and save your recovery code. | Progress belongs to a person and survives closing the browser. |
 | 2. Set preferences | Choose interests, Normal or Work mode, time, spending limit, and an area or browser location. | A shared activity needs to fit both people. The lower time and budget win; Work mode limits the break to 15 minutes. |
 | 3. Link a device | Enter the private pairing code supplied with an ESP32. | Knowing a public device ID should not let someone claim it. |
 | 4. Become available | Choose to receive a quest and keep the website open while waiting. | Being nearby is not consent. Availability expires if the browser stops checking in. |
@@ -41,7 +41,9 @@ npm run dev
 
 Open [the application](http://localhost:3000/explore) and choose **Try the full demo**. The copy command preserves an existing `.env`.
 
-Signing in again with the same Google account restores that account's progress. To test two people, use two browser profiles or a normal and private window; ordinary tabs share authentication cookies. Google now asks you to select an account, and starting provider sign-in leaves an earlier demo session. Failed sign-ins show an error instead of silently reusing the demo.
+For a real account, choose **Create account**, enter your name, email and a password of at least 12 characters, and save the recovery code shown once. Check **I saved my recovery code**, then continue. Afterward, sign in with your email and password. The same account restores its saved progress. No authentication API key, OAuth setup, paid provider or hosted database is required.
+
+The browser keeps a private session cookie; passwords and recovery codes are not stored in that cookie. **Sign out** revokes the server session. **Forgot your password?** accepts your saved recovery code and issues a replacement after a reset. Email is a login identifier; the MVP does not verify ownership or send email. To test two people, use separate browser profiles or a normal and private window. Ordinary tabs share login cookies.
 
 The demo creates its own persistent room with a sample device and partner. Set preferences, link the sample device, become available, and simulate an encounter. Accept for yourself, then use the labelled partner controls. Upload your photo or use the sample artwork; add the partner's sample photo and confirm both sides. See [the walkthrough](docs/DEMO.md) for the exact sequence and the invitation link for a second browser profile.
 
@@ -53,23 +55,25 @@ Keep credentials in the ignored `.env`, never in Git or browser code.
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL/Tiger Data storage for real users, devices, quests and evidence. |
-| `AUTH_SECRET` | A stable random application secret for authentication. |
-| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Google OAuth application credentials. |
-| `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET` | Facebook Login application credentials. These are separate from the Meta AI key. |
-| `META_AI_API_KEY` | Server-side quest writing and photo checking. |
+| `QUESTGO_STORAGE` | `sqlite` is the explicit local default. Set `postgres` to use the optional remote backend. |
+| `DATABASE_URL` | Only used with `QUESTGO_STORAGE=postgres`; existing remote data is left untouched in SQLite mode. |
+| `QUESTGO_DATA_DIR` | Optional persistent data directory. Defaults to `.questgo/` in the project. |
+| `AUTH_SECRET` | Optional stable secret for demo-cookie signing. Normal account sessions do not require it. |
+| `META_AI_API_KEY` | Server-side quest writing and photo checking; not needed for account login. |
 | `META_AI_BASE_URL`, `META_AI_MODEL`, `META_AI_VISION_MODEL` | Optional overrides. Defaults: `https://api.meta.ai/v1`, `muse-spark-1.3`. |
-| `AUTH_URL` | The actual application origin, especially for a hosted or local production server. |
+| `AUTH_URL` | Actual application origin when hosting or testing a production server. |
 
 Meta's [API reference](https://dev.meta.ai/docs/api-reference) and [image-understanding guide](https://dev.meta.ai/docs/image-understanding) describe the chat-completions and image format used here. Arjit Magar's quest generator and photo judge are reused in `shared/quest-ai.ts`; the standalone `validation/` lab uses the same implementation. Live QuestGo ignores the lab's `MUSE_MOCK` setting.
 
-For real accounts, first run `npm run db:migrate`. Register Google and Facebook callback URLs at `/api/auth/callback/google` and `/api/auth/callback/facebook` on the application's origin. Provision each ESP32 with `npm run device:provision -- questgo-001`, then hand its separate firmware key and pairing code to the appropriate people. Follow the [hardware contract](docs/HARDWARE.md); firmware is supplied by the hardware teammate.
+SQLite account storage initializes automatically. If you explicitly select PostgreSQL, run `npm run db:migrate` first. Provision each ESP32 with `npm run device:provision -- questgo-001`, then hand its separate firmware key and pairing code to the appropriate people. Follow the [hardware contract](docs/HARDWARE.md); firmware is supplied by the hardware teammate.
 
 Nearby venues come from OpenStreetMap, with source and walking-direction links. Manual area lookup uses Nominatim; browser coordinates can avoid that lookup. Venue prices, opening hours and access must be checked with the venue. Purchases and bookings happen outside QuestGo. If venue lookup or quest writing fails, both people receive the same clearly labelled free fallback. See [integration setup](docs/INTEGRATIONS.md) for details.
 
 ## How data is kept
 
-Real data lives in the dedicated PostgreSQL schema **`questgo_app`**. Existing tables in `public` are left untouched. This separation prevents QuestGo from colliding with another dataset. Earlier public-schema QuestGo data is not automatically copied into the new schema.
+The local MVP stores real accounts in **`.questgo/accounts.sqlite`** and samples in **`.questgo/demo.sqlite`**. Both persist across restarts and must be kept on a persistent disk when hosting. Separate files keep real accounts out of demo rooms. There is no automatic fallback between databases.
+
+The optional PostgreSQL backend uses the dedicated **`questgo_app`** schema and leaves existing `public` tables untouched. Existing remote data is not silently copied into local accounts or linked by email. New migration 004 adds only credential and session tables; password/session changes operate on those new tables.
 
 Photo replacements create new rows in `questgo_photo_submissions`; pending and completed checks create rows in `questgo_photo_validations`. Completion inserts one `questgo_achievements` record per session. Earlier submissions and validation attempts are retained instead of overwritten. These are the new tables added for this feature; normal current-session progress still updates within QuestGo's own schema.
 
@@ -86,7 +90,7 @@ npm run build
 AUTH_URL=http://localhost:3000 npm start
 ```
 
-For an existing server, run `PLAYWRIGHT_BASE_URL=http://localhost:3102 npm run test:e2e`. Set `QUESTGO_TEST_META=true` as well to include a real rejection through the upload API; this requires the server's Meta key and uses that service. `npx tsx scripts/check-meta.ts` separately checks the real vision API with a generated, unrelated color swatch. Neither command sends a user's private photo.
+For an existing server, run `PLAYWRIGHT_BASE_URL=http://localhost:3101 npm run test:e2e`. Set `QUESTGO_TEST_META=true` as well to include a real rejection through the upload API; this requires the server's Meta key and uses that service. `npx tsx scripts/check-meta.ts` separately checks the real vision API with a generated, unrelated color swatch. Neither command sends a user's private photo.
 
 `bash scripts/test-postgres.sh` starts and stops a disposable local PostgreSQL database. It tests migrations, existing-data preservation, relationships, private photos and concurrent completion without using the configured remote database.
 
@@ -94,12 +98,13 @@ Deploy as a Node service behind HTTPS, apply migrations before starting the new 
 
 ## What has been verified
 
-The current feature passes TypeScript, the production build, 17 automated tests, eight desktop/mobile/API scenarios, and disposable PostgreSQL checks. A real Meta vision call succeeded; an unrelated image was also rejected through the app's upload endpoint, and completion remained blocked. Browser checks cover reloads, separate identities, private photos, failed-upload recovery, mutual completion and history.
+The current feature passes TypeScript, the production build, 20 automated tests, nine desktop/mobile/API scenarios, and disposable PostgreSQL checks. A real Meta vision call succeeded; an unrelated image was also rejected through the app's upload endpoint, and completion remained blocked. Browser checks cover reloads, separate identities, private photos, failed-upload recovery, mutual completion and history.
 
-The configured remote database still times out from this environment; no changes have been applied there. Google credentials are present locally, but a real callback has not been verified. Facebook credentials are still empty in the checked local configuration. Physical ESP32 encounters, reliable live venue retrieval, and hosted HTTPS deployment still need verification. A working local demo does not establish those connections.
+The remote database still times out and remains optional for this local MVP. Google/Facebook sign-in and their authentication dependency have been removed. Physical ESP32 encounters, reliable live venue retrieval, and hosted HTTPS deployment still need verification. The complete demo and ordinary local account sign-in are working.
 
 ## Find the implementation
 
+- `src/lib/accounts.ts`, `src/lib/passwords.ts`, `src/lib/identity.ts`: password accounts and revocable cookie sessions.
 - `src/lib/domain.ts`: shared quest lifecycle, consent, completion and streak rules.
 - `src/lib/achievement-photos.ts`: submission history, private reads, checks and retries.
 - `shared/quest-ai.ts`: Arjit’s shared generator and judge; `shared/meta-ai.ts`: provider client.

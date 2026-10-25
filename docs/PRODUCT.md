@@ -2,9 +2,9 @@
 
 ## Current implementation
 
-The landing page leads to `/explore`, the working application. It includes Google/Facebook sign-in entry points, preferences and location entry, private device pairing, opt-in availability, a shared quest offer, independent acceptance, active activity, separate achievement photos, mutual completion, cancellation, expiry, photo achievements and UTC streaks. Live sign-in is shown as unavailable until provider and database configuration are present.
+The landing page leads to `/explore`, the working application. It includes direct email/password registration and cookie sign-in, preferences and location entry, private device pairing, opt-in availability, a shared quest offer, independent acceptance, active activity, separate achievement photos, mutual completion, cancellation, expiry, photo achievements and UTC streaks. Account storage is explicitly local SQLite by default, with PostgreSQL as an optional configured backend.
 
-An explicit demo creates a separate persistent room with a sample partner and device. Users can run the complete journey, simulate the partner's choices, or share a second-identity link with another browser profile. Demo devices, encounters and venue suggestions are labeled. Reloading preserves saved progress. No real hardware or OAuth integration is claimed verified by a successful demo.
+An explicit demo creates a separate persistent room with a sample partner and device. Users can run the complete journey, simulate the partner's choices, or share a second-identity link with another browser profile. Demo devices, encounters and venue suggestions are labeled. Reloading preserves saved progress. A successful demo does not establish physical hardware or hosted integration readiness.
 
 The experience has loading, request-error, disconnected, empty-history and neutral ended-quest states, plus keyboard-accessible controls and reduced-motion support. Desktop and 390px-wide browser tests complete the journey and reload a waiting session. A separate passing-on-an-offer scenario verifies that no history credit is awarded.
 
@@ -15,7 +15,7 @@ Confirmed with the user on October 24, 2026:
 - The first version connects both friends and strangers.
 - People may be required to keep the website open while available for a new quest. Background notifications are outside this MVP.
 - ESP32 devices report encounters directly over Wi-Fi. A teammate supplies the firmware; the software and hardware sides must agree on the reporting format.
-- Both Google and Facebook sign-in are required at launch.
+- The original Google/Facebook decision was replaced by the user: the MVP now uses direct email/password accounts and browser cookies, without OAuth.
 - Quests must include actual nearby venues and potentially paid activities, as well as simple activities. A fixed collection of free prompts alone is insufficient.
 
 ## User journey and MVP defaults
@@ -24,7 +24,11 @@ The user authorized full MVP implementation on October 24, 2026. Implement this 
 
 ### 1. Arrive and sign in
 
-Visitors see a short explanation and a clear sign-in action. After Google or Facebook sign-in, they enter the application rather than returning to a marketing page. Returning users resume an unfinished quest or reach their home screen. Signing in again with the same provider account deliberately restores that account’s saved progress. A different provider account has its own profile and history. Starting Google/Facebook sign-in leaves an existing demo identity; a failed sign-in returns to an error screen instead of silently restoring the demo. Google asks which account to use. Two-person tests need separate browser profiles or a normal and private window because tabs in one profile share login cookies.
+Visitors see Sign in, Create account and a separate Try the full demo action. New accounts require a display name, email and a password of at least 12 characters. After registration, the user saves a recovery code, then continues into the app. Returning users enter their email and password to resume their own preferences, devices and quests.
+
+Login creates a random server-side session referenced by an HTTP-only browser cookie. Signing out revokes that session. The same account restores its progress; different accounts stay separate. Entering the demo signs out the real account first. Local accounts persist in SQLite without authentication keys or a remote database. Email is a login identifier, not a verified contact address. Password resets use the saved recovery code, rotate it and revoke prior sessions. No reset email or paid provider is involved.
+
+Two-person tests need separate browser profiles or a normal and private window; ordinary tabs share cookies. Failed sign-in shows a recoverable error and cannot silently restore a demo identity.
 
 ### 2. Set up once
 
@@ -94,7 +98,7 @@ Offers expire after five minutes; active quests after 24 hours. Before activatio
 
 Nearby places come from OpenStreetMap with source and directions links. Meta AI optionally writes the activity text. A missing provider, invalid response or timeout uses a free activity with a visible fallback explanation. A live offer can retry nearby lookup only before either person accepts.
 
-The remaining external work is provider credentials/callback verification, NorthMark hosting access and actual ESP32 firmware integration. Device ownership transfer, embedded maps, in-app payments and group matching remain outside this MVP.
+The remaining external work is NorthMark hosting access, reliable venue retrieval and actual ESP32 firmware integration. Device ownership transfer, embedded maps, in-app payments and group matching remain outside this MVP.
 
 ## Delivery and verification sequence
 

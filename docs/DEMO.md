@@ -10,7 +10,7 @@ cp -n .env.example .env
 npm run dev
 ```
 
-Open [QuestGo](http://localhost:3000/explore). No API keys, database account or hardware are required for the isolated demo. Existing `.env` values are preserved by `cp -n`. A local `AUTH_SECRET` was generated during implementation; keep it private. A newly copied template without a secret still supports a process-local demo, but a stable random secret is needed to preserve demo authentication across server restarts and enable real OAuth.
+Open [QuestGo](http://localhost:3000/explore). No API keys, database account or hardware are required for the isolated demo. Existing `.env` values are preserved by `cp -n`. A local `AUTH_SECRET` was generated during implementation; keep it private. A newly copied template without a secret still supports a process-local demo, but a stable random secret is needed to preserve demo authentication across server restarts; normal account sign-in uses opaque cookie sessions instead.
 
 ## A two-minute walkthrough
 
@@ -37,7 +37,7 @@ Do not open the invitation in the same browser profile if you want to retain the
 
 The interface, API requests, persistent demo storage, shared quest identity, availability checks, acceptance/completion rules, reload recovery, history and streak calculation actually execute. They are not just animated screen transitions.
 
-The demo's hardware signal, second person's optional control buttons and sample venue are simulations, explicitly labeled. Real Google/Facebook sign-in requires the provider applications and PostgreSQL. Real venue lookup uses external OpenStreetMap services; lookup timed out during local external verification, so successful retrieval is not claimed. Real Meta AI generation and photo checks require `META_AI_API_KEY`; the key and vision calls have been verified locally. Physical proximity and firmware behavior need the teammate's ESP32s. Hosted verification needs NorthMark access.
+The demo's hardware signal, second person's optional control buttons and sample venue are simulations, explicitly labeled. Normal email/password accounts use separate local SQLite storage and need no authentication provider. Real venue lookup uses external OpenStreetMap services; lookup timed out during local external verification, so successful retrieval is not claimed. Real Meta AI generation and photo checks require `META_AI_API_KEY`; the key and vision calls have been verified locally. Physical proximity and firmware behavior need the teammate's ESP32s. Hosted verification needs NorthMark access.
 
 ## Validation commands
 
@@ -49,7 +49,7 @@ npm run test:e2e
 npm run build
 ```
 
-The Playwright suite can reuse the local server on port 3000. To check an already running production instance, set `PLAYWRIGHT_BASE_URL` to its origin; the final verification used `http://localhost:3101` and all six scenarios passed. Add `QUESTGO_TEST_META=true` to include actual Meta rejection in the API and desktop UI checks. It checks two independent API identities, consent, authorization, desktop/mobile completion, reload recovery, skipping, failed-save recovery and mobile sign-out. Screenshots are written to ignored `artifacts/` files.
+The Playwright suite can reuse the local server on port 3000. To check an already running production instance, set `PLAYWRIGHT_BASE_URL` to its origin; the final verification used `http://localhost:3101` and all nine current scenarios passed. Add `QUESTGO_TEST_META=true` to include actual Meta rejection in the API and desktop UI checks. Account tests also cover creation, cookie login, logout, recovery, session revocation and account isolation. It checks two independent API identities, consent, authorization, desktop/mobile completion, reload recovery, skipping, failed-save recovery and mobile sign-out. Screenshots are written to ignored `artifacts/` files.
 
 For the disposable PostgreSQL verification, run `bash scripts/test-postgres.sh`. On systems where the binaries are not in the default Homebrew PostgreSQL 17 directory, set `PG_BIN_DIR` to their directory. This check starts its own local `questgo_test` database on port 55439 and stops it afterward; it does not use your live `DATABASE_URL`.
 

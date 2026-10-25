@@ -1,7 +1,12 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { auth } from "@/auth";
 import { AppError } from "./domain";
+import {
+  readLoginSession,
+  revokeLoginSession,
+  SESSION_COOKIE,
+  SESSION_LIFETIME,
+} from "./accounts";
 
 export const demoEnabled = () => process.env.QUESTGO_DEMO_ENABLED !== "false";
 const globalSecret = globalThis as typeof globalThis & {
@@ -44,6 +49,9 @@ export function verifyDemo(
   }
 }
 export async function setDemoCookie(userId: string, room: string) {
+  const jar = await cookies();
+  await revokeLoginSession(jar.get(SESSION_COOKIE)?.value);
+  jar.delete(SESSION_COOKIE);
   const localHttp = /^http:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(
     process.env.AUTH_URL || "",
   );
@@ -55,6 +63,21 @@ export async function setDemoCookie(userId: string, room: string) {
     maxAge: 86_400,
   });
 }
+export async function setAccountCookie(token: string, requestUrl: string) {
+  const url = new URL(process.env.AUTH_URL || requestUrl);
+  const localHttp =
+    url.protocol === "http:" &&
+    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  const jar = await cookies();
+  jar.delete("questgo-demo");
+  jar.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: !localHttp && process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_LIFETIME / 1000,
+  });
+}
 export async function actor() {
   if (demoEnabled()) {
     const token = (await cookies()).get("questgo-demo")?.value;
@@ -62,8 +85,9 @@ export async function actor() {
     if (identity)
       return { id: identity.userId, demo: true, room: identity.room };
   }
-  const session = process.env.AUTH_SECRET ? await auth() : null;
-  if (!session?.user?.id)
-    throw new AppError("Please sign in or open the demo.", 401);
-  return { id: session.user.id, demo: false, room: undefined };
+  const userId = await readLoginSession(
+    (await cookies()).get(SESSION_COOKIE)?.value,
+  );
+  if (!userId) throw new AppError("Please sign in or open the demo.", 401);
+  return { id: userId, demo: false, room: undefined };
 }
