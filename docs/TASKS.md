@@ -138,3 +138,9 @@ Focused feature commits:
 - `ed3e627`: `test(achievements): verify live rejection in the desktop journey`.
 
 Integration uses a separate `integration/validated-achievements` copy, rebased onto local `main` and squash-merged there. The feature branch and Arjit’s original branch are preserved. Implementation uses a separate worktree (listed by `git worktree list`); the original worktree’s uncommitted architecture edit is untouched.
+
+## Google/demo session switching
+
+Branch: `feat/auth-session-switch`. Provider sign-in clears the active demo cookie before leaving QuestGo, including when OAuth later fails. Successful provider callbacks also clear any remaining demo identity. Demo records are retained; no account data is merged or reset. Google requests account selection. A regression check covers leaving an existing demo, the exact Google callback, account selection, preservation of the saved room and the error screen after a failed login.
+
+Validation: 17 automated tests, the production build and eight browser/API scenarios. Real callback completion still depends on Google settings and live database access; initiating the login flow is tested independently of those external steps.

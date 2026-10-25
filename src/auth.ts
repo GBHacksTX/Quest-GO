@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Facebook from "next-auth/providers/facebook";
+import { cookies } from "next/headers";
 import { transact } from "@/lib/store";
 import { makeUser } from "@/lib/domain";
 
@@ -8,7 +9,7 @@ export const { handlers, auth } = NextAuth({
   trustHost: true,
   providers: [
     ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
-      ? [Google]
+      ? [Google({ authorization: { params: { prompt: "select_account" } } })]
       : []),
     ...(process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET
       ? [Facebook]
@@ -16,6 +17,12 @@ export const { handlers, auth } = NextAuth({
   ],
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   pages: { signIn: "/explore", error: "/explore" },
+  events: {
+    async signIn() {
+      // A successful provider callback must leave any earlier demo identity.
+      (await cookies()).delete("questgo-demo");
+    },
+  },
   callbacks: {
     async jwt({ token, account, user }) {
       if (account && user) {

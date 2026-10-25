@@ -24,7 +24,7 @@ The user authorized full MVP implementation on October 24, 2026. Implement this 
 
 ### 1. Arrive and sign in
 
-Visitors see a short explanation and a clear sign-in action. After Google or Facebook sign-in, they enter the application rather than returning to a marketing page. Returning users resume an unfinished quest or reach their home screen.
+Visitors see a short explanation and a clear sign-in action. After Google or Facebook sign-in, they enter the application rather than returning to a marketing page. Returning users resume an unfinished quest or reach their home screen. Signing in again with the same provider account deliberately restores that account’s saved progress. A different provider account has its own profile and history. Starting Google/Facebook sign-in leaves an existing demo identity; a failed sign-in returns to an error screen instead of silently restoring the demo. Google asks which account to use. Two-person tests need separate browser profiles or a normal and private window because tabs in one profile share login cookies.
 
 ### 2. Set up once
 

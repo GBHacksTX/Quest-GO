@@ -5,7 +5,7 @@ Updated October 25, 2026. Implementation, local verification and external verifi
 | Integration | Implemented behavior | Current verification |
 | --- | --- | --- |
 | PostgreSQL / Tiger Data | Versioned migrations and transactions in the isolated `questgo_app` schema; additive submission, validation and achievement tables. | Disposable PostgreSQL 17 checks pass, including preservation of a pre-existing public table. The supplied remote connection times out; it has not been modified. |
-| Google / Facebook | Auth.js sessions, provider/account identity mapping and protected APIs. | Google credentials are configured locally. Facebook credentials are empty in the checked local file. Real OAuth callbacks remain unverified. |
+| Google / Facebook | Auth.js sessions, provider/account identity mapping and protected APIs. | Google credentials are configured locally. Facebook credentials are empty in the checked local file. Provider initiation clears a prior demo cookie and Google requests account selection; regression checks pass. Real OAuth callbacks remain unverified. |
 | Meta AI | Arjit Magar’s shared quest generator and image judge, using authenticated chat completions and image content parts. | The configured key returned models; `muse-spark-1.3` successfully checked an image. Real upload-API rejection blocks completion. Incomplete responses and provider failures fail closed. |
 | Nearby venues | OpenStreetMap Overpass and Nominatim, real source/directions links, unknown prices and a free fallback. | Fixture checks pass. Live venue calls have timed out here; successful external retrieval is not claimed. |
 | ESP32 | Private device provisioning and claims, per-device authenticated heartbeat/encounter routes. | Software authentication and lifecycle checks pass. Teammate firmware and two physical devices still need a real encounter check. |
@@ -36,7 +36,7 @@ Venue lookup, generation and image judging have bounded timeouts. Venue/generati
 
 ## Local verification
 
-TypeScript, the production build, 17 automated tests and six API/browser scenarios pass. Tests cover independent identities, consent, photo normalization and access, rejected/error evidence, replacement races, retries, saved history, UTC streaks and duplicate-credit prevention. A disposable PostgreSQL check also verifies the new tables and that an existing public dataset is untouched. The standalone validation lab type-checks after generating its Next.js route types.
+TypeScript, the production build, 17 automated tests and eight API/browser scenarios pass. Tests cover independent identities, consent, photo normalization and access, rejected/error evidence, replacement races, retries, saved history, UTC streaks and duplicate-credit prevention. A disposable PostgreSQL check also verifies the new tables and that an existing public dataset is untouched. The standalone validation lab type-checks after generating its Next.js route types.
 
 The production app runs locally at [localhost:3101/explore](http://localhost:3101/explore). Automated screenshots are in the ignored `artifacts/` directory. No hosted deployment or remote push has been performed.
 
